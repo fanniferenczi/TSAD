@@ -1,5 +1,4 @@
-# Disable CUDA for macOS
-export CUDA_VISIBLE_DEVICES=""
+export CUDA_VISIBLE_DEVICES=2
 
 python -u run.py \
   --task_name anomaly_detection \
