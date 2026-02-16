@@ -16,14 +16,20 @@ Columns:
   - Fm: Flow meter
   - EVENT: Anomaly label (True/False)
 
-Output: dataset/GECCO/ with train.npy, test.npy, test_label.npy
+Input:  TSAD/datasets/GECCO/gecco2018_water_quality.csv (raw data repo)
+Output: TSAD/TimesNet/Time-Series-Library/dataset/GECCO/ with train.npy, test.npy, test_label.npy
 """
 
 import os
 import numpy as np
 import pandas as pd
 
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dataset", "GECCO")
+# Paths relative to the repo structure: TSAD/TimesNet/Time-Series-Library/scripts/prepare_gecco.py
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+TSL_DIR = os.path.dirname(SCRIPT_DIR)                          # Time-Series-Library/
+TSAD_ROOT = os.path.dirname(os.path.dirname(TSL_DIR))           # TSAD/
+RAW_DATA_DIR = os.path.join(TSAD_ROOT, "datasets", "GECCO")     # TSAD/datasets/GECCO/
+OUTPUT_DIR = os.path.join(TSL_DIR, "dataset", "GECCO")          # Time-Series-Library/dataset/GECCO/
 
 
 def prepare_gecco(csv_path: str, output_dir: str = OUTPUT_DIR, train_ratio: float = 0.6):
@@ -83,12 +89,12 @@ def prepare_gecco(csv_path: str, output_dir: str = OUTPUT_DIR, train_ratio: floa
 
 
 if __name__ == "__main__":
-    csv_path = os.path.join(OUTPUT_DIR, "gecco2018_water_quality.csv")
+    csv_path = os.path.join(RAW_DATA_DIR, "gecco2018_water_quality.csv")
     if not os.path.exists(csv_path):
         raise FileNotFoundError(
             f"CSV not found at {csv_path}. "
-            f"Download it manually from https://zenodo.org/records/3884398 "
-            f"and place it in {OUTPUT_DIR}/"
+            f"Place the raw CSV in TSAD/datasets/GECCO/"
         )
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     num_features = prepare_gecco(csv_path)
     print(f"\nDone! Use --enc_in {num_features} --c_out {num_features} when running TimesNet.")
