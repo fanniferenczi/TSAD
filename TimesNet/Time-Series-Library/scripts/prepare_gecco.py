@@ -53,9 +53,9 @@ def prepare_gecco(csv_path: str, output_dir: str = OUTPUT_DIR, train_ratio: floa
     if event_col is None:
         raise ValueError(f"Could not find EVENT column. Columns: {list(df.columns)}")
 
-    # Identify feature columns (exclude time and label columns)
+    # Identify feature columns (exclude time, label, and index columns)
     exclude = {"Time", "time", "datetime", "Datetime", event_col}
-    feature_cols = [c for c in df.columns if c.strip() not in exclude]
+    feature_cols = [c for c in df.columns if c.strip() not in exclude and not c.startswith("Unnamed")]
     print(f"Feature columns ({len(feature_cols)}): {feature_cols}")
     print(f"Label column: {event_col}")
 
