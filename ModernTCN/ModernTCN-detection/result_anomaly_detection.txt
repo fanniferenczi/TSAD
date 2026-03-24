@@ -49,3 +49,129 @@ Accuracy : 0.9814, Precision : 0.9864, Recall : 0.9458, F-score : 0.9657
 SWAT_ModernTCN_SWAT_ftM_dim128_nb3_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
 Accuracy : 0.9834, Precision : 0.9578, Recall : 0.9029, F-score : 0.9295 
 
+SMD_ModernTCN_SMD_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9867, Precision : 0.8684, Recall : 0.8001, F-score : 0.8328 
+
+SMD_ModernTCN_SMD_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9867, Precision : 0.8684, Recall : 0.8001, F-score : 0.8328 
+
+SMD_seed2021_ModernTCN_SMD_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_seed2021_0  
+Accuracy : 0.9867, Precision : 0.8684, Recall : 0.8001, F-score : 0.8328 
+
+SMD_seed2022_ModernTCN_SMD_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_seed2022_0  
+Accuracy : 0.9867, Precision : 0.8706, Recall : 0.7993, F-score : 0.8335 
+
+SMD_seed2023_ModernTCN_SMD_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_seed2023_0  
+Accuracy : 0.9866, Precision : 0.8681, Recall : 0.7992, F-score : 0.8322 
+
+SMD_seed2024_ModernTCN_SMD_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_seed2024_0  
+Accuracy : 0.9867, Precision : 0.8694, Recall : 0.7997, F-score : 0.8331 
+
+SMD_seed2025_ModernTCN_SMD_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_seed2025_0  
+Accuracy : 0.9868, Precision : 0.8683, Recall : 0.8032, F-score : 0.8345 
+
+SMD_ModernTCN_SMD_ftM_dim32_nb1_lk71_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9875, Precision : 0.8743, Recall : 0.8164, F-score : 0.8444 
+
+SMD_ModernTCN_SMD_ftM_dim32_nb1_lk71_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_1  
+Accuracy : 0.9865, Precision : 0.8678, Recall : 0.7967, F-score : 0.8307 
+
+SMD_ModernTCN_SMD_ftM_dim32_nb1_lk71_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_2  
+Accuracy : 0.9872, Precision : 0.8702, Recall : 0.8135, F-score : 0.8409 
+
+SMD_ModernTCN_SMD_ftM_dim32_nb1_lk71_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_3  
+Accuracy : 0.9871, Precision : 0.8706, Recall : 0.8090, F-score : 0.8387 
+
+SMD_ModernTCN_SMD_ftM_dim32_nb1_lk71_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_4  
+Accuracy : 0.9874, Precision : 0.8733, Recall : 0.8160, F-score : 0.8436 
+
+GECCO_seed2021_ModernTCN_GECCO_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_GECCO_0  
+Accuracy : 0.9940, Precision : 0.3208, Recall : 0.3068, F-score : 0.3136 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim32_nb3_lk51_sk5_ffr1_ps16_str8_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9966, Precision : 0.8994, Recall : 0.2849, F-score : 0.4327 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim128_nb1_lk31_sk5_ffr1_ps16_str1_multiFalse_mergedFalse_NNI_0  
+Accuracy : 0.9940, Precision : 0.3263, Recall : 0.3068, F-score : 0.3162 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim128_nb2_lk71_sk7_ffr2_ps16_str8_multiFalse_mergedFalse_NNI_0  
+Accuracy : 0.9962, Precision : 0.6842, Recall : 0.2849, F-score : 0.4023 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim128_nb1_lk71_sk7_ffr1_ps16_str1_multiFalse_mergedFalse_NNI_0  
+Accuracy : 0.9951, Precision : 0.4302, Recall : 0.3068, F-score : 0.3581 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim32_nb3_lk31_sk5_ffr2_ps8_str4_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9967, Precision : 0.8953, Recall : 0.3068, F-score : 0.4570 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim128_nb2_lk71_sk3_ffr1_ps16_str2_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9922, Precision : 0.1901, Recall : 0.2077, F-score : 0.1985 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim16_nb1_lk51_sk5_ffr1_ps16_str8_multiFalse_mergedFalse_NNI_0  
+Accuracy : 0.9963, Precision : 0.7222, Recall : 0.2849, F-score : 0.4086 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim128_nb3_lk71_sk7_ffr2_ps16_str4_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9958, Precision : 0.6429, Recall : 0.2077, F-score : 0.3140 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim64_nb3_lk31_sk3_ffr2_ps4_str1_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9954, Precision : 0.0000, Recall : 0.0000, F-score : 0.0000 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim64_nb2_lk51_sk5_ffr1_ps4_str4_multiFalse_mergedFalse_NNI_0  
+Accuracy : 0.9965, Precision : 0.7857, Recall : 0.3068, F-score : 0.4413 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim16_nb3_lk51_sk7_ffr2_ps4_str1_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9940, Precision : 0.2967, Recall : 0.2077, F-score : 0.2443 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim64_nb3_lk51_sk3_ffr2_ps16_str1_multiFalse_mergedFalse_NNI_0  
+Accuracy : 0.9957, Precision : 0.6000, Recall : 0.2077, F-score : 0.3086 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim64_nb1_lk51_sk5_ffr2_ps4_str2_multiFalse_mergedFalse_NNI_0  
+Accuracy : 0.9961, Precision : 0.6560, Recall : 0.2849, F-score : 0.3972 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim128_nb1_lk71_sk3_ffr2_ps4_str4_multiFalse_mergedFalse_NNI_0  
+Accuracy : 0.9961, Precision : 0.6471, Recall : 0.3068, F-score : 0.4162 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim128_nb2_lk31_sk7_ffr2_ps8_str1_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9965, Precision : 0.8266, Recall : 0.2849, F-score : 0.4237 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim128_nb2_lk51_sk7_ffr2_ps16_str1_multiFalse_mergedFalse_NNI_0  
+Accuracy : 0.9949, Precision : 0.4028, Recall : 0.2849, F-score : 0.3337 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim16_nb3_lk31_sk3_ffr2_ps8_str1_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9955, Precision : 0.0000, Recall : 0.0000, F-score : 0.0000 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim16_nb3_lk31_sk3_ffr1_ps4_str2_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9920, Precision : 0.1849, Recall : 0.2077, F-score : 0.1957 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim128_nb1_lk31_sk3_ffr1_ps8_str4_multiFalse_mergedFalse_NNI_0  
+Accuracy : 0.9963, Precision : 0.7296, Recall : 0.2849, F-score : 0.4097 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim32_nb2_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_NNI_0  
+Accuracy : 0.9966, Precision : 0.8556, Recall : 0.3068, F-score : 0.4516 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim32_nb2_lk31_sk5_ffr1_ps8_str4_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9968, Precision : 0.9167, Recall : 0.3068, F-score : 0.4597 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim32_nb3_lk31_sk5_ffr1_ps8_str4_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9968, Precision : 0.9167, Recall : 0.3068, F-score : 0.4597 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim32_nb2_lk31_sk5_ffr1_ps8_str4_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9967, Precision : 0.9059, Recall : 0.3068, F-score : 0.4583 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim32_nb2_lk31_sk5_ffr1_ps8_str4_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9967, Precision : 0.8953, Recall : 0.3068, F-score : 0.4570 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim32_nb3_lk31_sk5_ffr1_ps8_str4_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9968, Precision : 0.9167, Recall : 0.3068, F-score : 0.4597 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim32_nb3_lk31_sk5_ffr1_ps8_str4_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9955, Precision : 0.0000, Recall : 0.0000, F-score : 0.0000 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim32_nb2_lk31_sk5_ffr1_ps8_str4_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9968, Precision : 0.9277, Recall : 0.3068, F-score : 0.4611 
+
+GECCO_nni_s2021_ModernTCN_GECCO_ftM_dim32_nb2_lk31_sk5_ffr1_ps8_str4_multiTrue_mergedFalse_NNI_0  
+Accuracy : 0.9968, Precision : 0.9277, Recall : 0.3068, F-score : 0.4611 
+
+GECCO_custom_seed2021_ModernTCN_GECCO_ftM_dim32_nb2_lk31_sk5_ffr1_ps8_str4_multiTrue_mergedFalse_GECCO_custom_0  
+Accuracy : 0.9968, Precision : 0.9277, Recall : 0.3068, F-score : 0.4611 
+

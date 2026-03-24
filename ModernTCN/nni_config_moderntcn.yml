@@ -1,0 +1,15 @@
+experimentName: ModernTCN_GECCO
+trialCommand: python nni_trial_moderntcn.py
+trialCodeDirectory: .
+trialGpuNumber: 1
+trialConcurrency: 1
+maxTrialNumber: 30
+searchSpaceFile: search_space.json
+tuner:
+  name: TPE
+  classArgs:
+    optimize_mode: maximize
+trainingService:
+  platform: local
+  useActiveGpu: false
+  gpuIndices: "2,3"  # adjust to your booked GPU(s)
