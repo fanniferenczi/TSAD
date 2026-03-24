@@ -1,0 +1,51 @@
+SMAP_ModernTCN_SMAP_ftM_dim128_nb1_lk13_sk5_ffr1_ps1_str1_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9364, Precision : 0.9082, Recall : 0.5593, F-score : 0.6923 
+
+SMD_ModernTCN_SMD_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9867, Precision : 0.8684, Recall : 0.8001, F-score : 0.8328 
+
+SMD_ModernTCN_SMD_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9867, Precision : 0.8684, Recall : 0.8001, F-score : 0.8328 
+
+SMD_ModernTCN_SMD_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9867, Precision : 0.8684, Recall : 0.8001, F-score : 0.8328 
+
+SMAP_ModernTCN_SMAP_ftM_dim32_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9335, Precision : 0.9029, Recall : 0.5385, F-score : 0.6746 
+
+MSL_ModernTCN_MSL_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9641, Precision : 0.8939, Recall : 0.7480, F-score : 0.8145 
+
+SMAP_ModernTCN_SMAP_ftM_dim32_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9335, Precision : 0.9029, Recall : 0.5385, F-score : 0.6746 
+
+SWAT_ModernTCN_SWAT_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9796, Precision : 0.9585, Recall : 0.8697, F-score : 0.9119 
+
+PSM_ModernTCN_PSM_ftM_dim32_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9809, Precision : 0.9874, Recall : 0.9432, F-score : 0.9648 
+
+SMD_ModernTCN_SMD_ftM_dim32_nb1_lk71_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9875, Precision : 0.8743, Recall : 0.8164, F-score : 0.8444 
+
+SMD_ModernTCN_SMD_ftM_dim32_nb1_lk71_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9875, Precision : 0.8743, Recall : 0.8164, F-score : 0.8444 
+
+SMD_ModernTCN_SMD_ftM_dim32_nb1_lk71_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9875, Precision : 0.8743, Recall : 0.8164, F-score : 0.8444 
+
+SMD_ModernTCN_SMD_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9867, Precision : 0.8684, Recall : 0.8001, F-score : 0.8328 
+
+MSL_ModernTCN_MSL_ftM_dim8_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9643, Precision : 0.8958, Recall : 0.7488, F-score : 0.8157 
+
+SMAP_ModernTCN_SMAP_ftM_dim128_nb1_lk13_sk5_ffr1_ps1_str1_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9364, Precision : 0.9082, Recall : 0.5593, F-score : 0.6923 
+
+PSM_ModernTCN_PSM_ftM_dim256_nb1_lk71_sk5_ffr1_ps4_str2_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9814, Precision : 0.9864, Recall : 0.9458, F-score : 0.9657 
+
+SWAT_ModernTCN_SWAT_ftM_dim128_nb3_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9834, Precision : 0.9578, Recall : 0.9029, F-score : 0.9295 
+

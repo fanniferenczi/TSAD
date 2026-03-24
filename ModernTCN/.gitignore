@@ -1,0 +1,8 @@
+# Datasets
+all_datasets/
+
+# python
+__pycache__/
+
+# checkpoints
+checkpoints/
