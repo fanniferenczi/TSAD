@@ -6,7 +6,7 @@ parser.add_argument('--dataset',
 					type=str, 
 					required=False,
 					default='synthetic',
-                    help="dataset from ['synthetic', 'SMD']")
+				    help="dataset name (e.g., 'synthetic', 'SMD', 'SWaT', 'SMAP', 'MSL', 'WADI', 'MSDS', 'UCR', 'MBA', 'NAB', 'PSM', 'GECCO')")
 parser.add_argument('--model', 
 					metavar='-m', 
 					type=str, 

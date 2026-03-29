@@ -7,7 +7,7 @@ import json
 from src.folderconstants import *
 from shutil import copyfile
 
-datasets = ['synthetic', 'SMD', 'SWaT', 'SMAP', 'MSL', 'WADI', 'MSDS', 'UCR', 'MBA', 'NAB']
+datasets = ['synthetic', 'SMD', 'SWaT', 'SMAP', 'MSL', 'WADI', 'MSDS', 'UCR', 'MBA', 'NAB', 'PSM', 'GECCO']
 
 wadi_drop = ['2_LS_001_AL', '2_LS_002_AL','2_P_001_STATUS','2_P_002_STATUS']
 
@@ -194,6 +194,63 @@ def load_data(dataset):
 		labels = np.zeros_like(test)
 		for i in range(-20, 20):
 			labels[ls + i, :] = 1
+		for file in ['train', 'test', 'labels']:
+			np.save(os.path.join(folder, f'{file}.npy'), eval(file))
+	elif dataset == 'PSM':
+		dataset_folder = 'data/PSM'
+		df_train = pd.read_csv(os.path.join(dataset_folder, 'train.csv'))
+		df_test  = pd.read_csv(os.path.join(dataset_folder, 'test.csv'))
+		df_labels = pd.read_csv(os.path.join(dataset_folder, 'test_label.csv'))
+
+		# Drop the timestamp/id column (first column) and convert to numpy
+		train = df_train.values[:, 1:].astype(np.float64)
+		test  = df_test.values[:, 1:].astype(np.float64)
+
+		# Replace NaNs (PSM train set is known to contain some)
+		train = np.nan_to_num(train)
+		test  = np.nan_to_num(test)
+
+		# Normalise using training min/max, consistent with SMAP/MSL/MBA pattern
+		train, min_a, max_a = normalize3(train)
+		test, _, _          = normalize3(test, min_a, max_a)
+
+		# Labels: single binary column → broadcast to all feature dimensions
+		# so shape matches (n_timesteps, n_features), consistent with other datasets
+		labels_raw = df_labels.values[:, 1:].astype(np.float64)  # shape (T, 1)
+		labels = np.repeat(labels_raw, test.shape[1], axis=1)     # shape (T, n_features)
+
+		print(f'PSM train: {train.shape}, test: {test.shape}, labels: {labels.shape}')
+		for file in ['train', 'test', 'labels']:
+			np.save(os.path.join(folder, f'{file}.npy'), eval(file))
+	elif dataset == 'GECCO':
+		dataset_folder = 'data/GECCO'
+		df = pd.read_csv(os.path.join(dataset_folder, 'gecco2018_water_quality.csv'))
+
+		# EVENT column → binary labels
+		labels_raw = (df['EVENT'].astype(str).str.strip().str.upper()
+					.isin(['TRUE', 'T', '1'])).astype(np.float64).to_numpy()
+
+		# Sensor features: drop row index, timestamp, and EVENT
+		drop_cols = ['EVENT', 'Time'] + [c for c in df.columns if c.startswith('Unnamed')]
+		feat = df.drop(columns=drop_cols, errors='ignore').select_dtypes(include=[np.number])
+		data = feat.to_numpy(dtype=np.float64)
+		data = np.nan_to_num(data)
+
+		# Train on normal points only — consistent with anomaly detection convention
+		# GECCO has ~0.16% anomaly rate so nearly all rows are usable for training
+		normal_idx = np.where(labels_raw == 0)[0]
+		train = data[normal_idx]
+		test  = data  # full series is the test set
+
+		# Normalise with train min/max, apply to test — matches SMAP/MSL/MBA/PSM pattern
+		train, min_a, max_a = normalize3(train)
+		test, _, _          = normalize3(test, min_a, max_a)
+
+		# Broadcast labels to (T, n_features) — matches PSM/GECCO convention
+		n_feats = test.shape[1]
+		labels  = np.repeat(labels_raw.reshape(-1, 1), n_feats, axis=1)
+
+		print(f'GECCO train: {train.shape}, test: {test.shape}, labels: {labels.shape}')
 		for file in ['train', 'test', 'labels']:
 			np.save(os.path.join(folder, f'{file}.npy'), eval(file))
 	else:

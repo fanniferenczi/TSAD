@@ -1,8 +1,8 @@
 pandas
 tqdm
 matplotlib
-dgl
-numpy
+dgl==0.6.1 -f https://data.dgl.ai/wheels/repo.html
+numpy<2
 SciencePlots
 scikit-learn
 xlrd==1.2.0
