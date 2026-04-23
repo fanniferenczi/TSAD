@@ -1,0 +1,15 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# datasets
+data/MSL/
+data/SMAP/
+data/machine/
+data/SWaT/
+data/PSM/
+data/GECCO/
+
+results/
+checkpoints/
+gta_smd.log
+gta_gecco.log

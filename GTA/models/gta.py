@@ -111,7 +111,7 @@ class GraphTemporalEmbedding(torch.nn.Module):
         x = x.permute(0, 2, 1) # >> (bsz, num_nodes, seq_len)
 
         x = self.tc_modules[0](x) # >> (bsz, num_nodes, seq_len)
-        x = self.gc_modules[0](x.transpose(0, 1), self.edge_index).transpose(0, 1) # >> (bsz, num_nodes, seq_len)
+        x = self.gc_module(x.transpose(0, 1), self.edge_index).transpose(0, 1) # >> (bsz, num_nodes, seq_len)
         # output = x
         
         for i in range(1, self.num_levels):

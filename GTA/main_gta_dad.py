@@ -44,6 +44,7 @@ parser.add_argument('--lradj', type=str, default='type1',help='adjust learning r
 
 parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
 parser.add_argument('--gpu', type=int, default=0, help='gpu')
+parser.add_argument('--test_only', action='store_true', help='skip training and run test only')
 
 args = parser.parse_args()
 
@@ -55,7 +56,10 @@ data_parser = {
     'WADI':{'data':'WADI_14days_downsampled.csv','T':'1_LS_001_AL','M':112,'S':1},
     'SMAP':{'data':'SMAP','T':0,'M':25,'S':1},
     'MSL':{'data':'MSL','T':0,'M':55,'S':1},
-    'SWaT':{'data':'SWaT','T':'FIT_101','M':51,'S':1}
+    'SWaT':{'data':'SWaT','T':'FIT_101','M':51,'S':1},
+    'SMD': {'data': 'machine', 'T': 0, 'M': 38, 'S': 1},
+    'PSM': {'data': 'PSM', 'T': 0, 'M': 25, 'S': 1},
+    'GECCO': {'data': 'GECCO', 'T': 0, 'M': 9, 'S': 1},
 }
 if args.data in data_parser.keys():
     data_info = data_parser[args.data]
@@ -71,8 +75,9 @@ for ii in range(args.itr):
                 args.d_model, args.n_heads, args.e_layers, args.d_layers, args.d_ff, args.attn, args.embed, args.des, ii)
 
     exp = Exp(args)
-    print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
-    exp.train(setting)
-    
+    if not args.test_only:
+        print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
+        exp.train(setting)
+
     print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
     exp.test(setting)

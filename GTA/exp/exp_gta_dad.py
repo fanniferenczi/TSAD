@@ -1,7 +1,9 @@
 from data.data_loader_dad import (
+    PSM,
     NASA_Anomaly,
     WADI,
-    SWaT
+    SWaT,
+    GECCO
 )
 from exp.exp_basic import Exp_Basic
 from models.gta import GTA
@@ -60,8 +62,11 @@ class Exp_GTA_DAD(Exp_Basic):
         data_dict = {
             'SMAP':NASA_Anomaly,
             'MSL':NASA_Anomaly,
+            'SMD': NASA_Anomaly,
             'WADI':WADI,
             'SWaT':SWaT,
+            'PSM': PSM,
+            'GECCO': GECCO,
         }
         Data = data_dict[self.args.data]
 
@@ -253,5 +258,78 @@ class Exp_GTA_DAD(Exp_Basic):
         np.save(folder_path+'pred.npy', preds)
         np.save(folder_path+'true.npy', trues)
         np.save(folder_path+'label.npy', labels)
+
+        # --- Anomaly scoring and evaluation ---
+
+        # Step 1: compute per-timestamp anomaly score (sum of squared errors across all sensors)
+        # preds and trues shape: (n_timestamps, pred_len, n_sensors)
+        # We take the last pred_len step and sum squared errors across sensors
+        errors = np.sum((preds - trues) ** 2, axis=-1)  # (n_timestamps, pred_len)
+        anomaly_scores = errors[:, -1]                   # take last predicted step -> (n_timestamps,)
+
+        # labels shape: (n_timestamps, pred_len) - take last step to match
+        anomaly_labels = labels[:, -1]                   # (n_timestamps,)
+
+        # Step 2: point-adjust protocol (following Chen et al., 2022, §V-B-2)
+        # If any point in a contiguous anomaly segment is detected, the whole segment is credited
+        def point_adjust(scores, labels, threshold):
+            preds_binary = (scores > threshold).astype(int)
+            # find contiguous anomaly segments in ground truth
+            adjusted = preds_binary.copy()
+            in_anomaly = False
+            segment_detected = False
+            segment_start = 0
+            for i in range(len(labels)):
+                if labels[i] == 1 and not in_anomaly:
+                    in_anomaly = True
+                    segment_start = i
+                    segment_detected = False
+                if in_anomaly:
+                    if preds_binary[i] == 1:
+                        segment_detected = True
+                    if labels[i] == 0 or i == len(labels) - 1:
+                        if segment_detected:
+                            adjusted[segment_start:i] = 1
+                        in_anomaly = False
+            return adjusted
+
+        # Step 3: grid search over thresholds to find best F1
+        from sklearn.metrics import precision_score, recall_score, f1_score
+
+        thresholds = np.linspace(anomaly_scores.min(), anomaly_scores.max(), 100)
+        best_f1 = 0
+        best_thresh = 0
+        best_prec = 0
+        best_rec = 0
+
+        for thresh in thresholds:
+            adjusted_preds = point_adjust(anomaly_scores, anomaly_labels, thresh)
+            f1 = f1_score(anomaly_labels, adjusted_preds, zero_division=0)
+            if f1 > best_f1:
+                best_f1 = f1
+                best_thresh = thresh
+                best_prec = precision_score(anomaly_labels, adjusted_preds, zero_division=0)
+                best_rec = recall_score(anomaly_labels, adjusted_preds, zero_division=0)
+
+        # Step 4: compute AUC-ROC using raw anomaly scores
+        from sklearn.metrics import roc_auc_score
+
+        try:
+            auc = roc_auc_score(anomaly_labels, anomaly_scores)
+        except ValueError:
+            # roc_auc_score fails if only one class present in labels
+            auc = 0.0
+            print('Warning: AUC could not be computed (only one class in labels)')
+
+        print(f'AUC-ROC:   {auc:.4f}')
+        print(f'Best threshold: {best_thresh:.6f}')
+        print(f'Precision: {best_prec:.4f}')
+        print(f'Recall:    {best_rec:.4f}')
+        print(f'F1 Score:  {best_f1:.4f}')
+
+        # save results
+        np.save(folder_path+'anomaly_scores.npy', anomaly_scores)
+        results_dict = {'precision': best_prec, 'recall': best_rec, 'f1': best_f1, 'threshold': best_thresh, 'auc': auc}
+        print('Anomaly detection results:', results_dict)
 
         return

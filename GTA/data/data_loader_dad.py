@@ -89,7 +89,7 @@ class NASA_Anomaly(Dataset):
         df_stamp['minute'] = df_stamp.date.apply(lambda row:row.minute,1)
         # df_stamp['minute'] = df_stamp.minute.map(lambda x:x//10)
         df_stamp['second'] = df_stamp.date.apply(lambda row:row.second,1)
-        data_stamp = df_stamp.drop(['date'],1).values
+        data_stamp = df_stamp.drop(['date'], axis=1).values
 
         if self.flag == 'train':
             if self.features=='M':
@@ -240,7 +240,7 @@ class WADI(Dataset):
         # df_stamp['minute'] = df_stamp.minute.map(lambda x:x//10)
         df_stamp['second'] = df_stamp.date.apply(lambda row:row.second,1)
         df_stamp['second'] = df_stamp.second.map(lambda x:x//10)
-        data_stamp = df_stamp.drop(['date'],1).values
+        data_stamp = df_stamp.drop(['date'], axis=1).values
         
         self.data_stamp = data_stamp
     
@@ -297,60 +297,60 @@ class SWaT(Dataset):
         scaler = MinMaxScaler()
         if self.flag == 'train':
             df_raw = pd.read_csv(os.path.join(self.root_path,
-                                            'SWaT_normaldata_downsampled.csv'))
-            if self.features=='M':
-                cols_data = df_raw.columns[1:]
+                                            'SWaT_normaldata_downsampled.csv'), header=0)
+            if self.features == 'M':
+                cols_data = df_raw.columns[1:-1]
                 df_data = df_raw[cols_data]
-            elif self.features=='S':
+            elif self.features == 'S':
                 df_data = df_raw[[self.target]]
 
-            df_stamp = df_raw[[' Timestamp']]
-            
+            df_stamp = df_raw[['Timestamp']]
+
             if self.scale:
                 data = scaler.fit_transform(df_data.values)
             else:
                 data = df_data.values
-            
+
             self.data_x = data
             self.data_y = data
         else:
             df_raw = pd.read_csv(os.path.join(self.root_path,
-                                            'SWaT_attackdata_downsampled.csv'))
+                                            'SWaT_attackdata_downsampled.csv'), header=0)
 
             border1s = [0, 0, 0]
             border2s = [None, len(df_raw)//4, len(df_raw)]
             border1 = border1s[self.set_type]
             border2 = border2s[self.set_type]
 
-            df_stamp = df_raw[[' Timestamp']][border1:border2]
+            df_stamp = df_raw[['Timestamp']][border1:border2]
 
-            if self.features=='M':
+            if self.features == 'M':
                 cols_data = df_raw.columns[1:-1]
                 df_data = df_raw[cols_data]
-                label = df_raw['Normal/Attack'].values
-            elif self.features=='S':
+                label = (df_raw['Normal/Attack'].values != 'Normal').astype(int)
+            elif self.features == 'S':
                 df_data = df_raw[[self.target]]
-                label = df_raw['Normal/Attack'].values
+                label = (df_raw['Normal/Attack'].values != 'Normal').astype(int)
 
             if self.scale:
                 data = scaler.fit_transform(df_data.values)
             else:
                 data = df_data.values
-            
+
             self.data_x = data[border1:border2]
             self.data_y = data[border1:border2]
             self.label = label[border1:border2]
         
-        df_stamp[' Timestamp'] = pd.to_datetime(df_stamp[' Timestamp'])
-        df_stamp['month'] = df_stamp[' Timestamp'].apply(lambda row:row.month,1)
-        df_stamp['day'] = df_stamp[' Timestamp'].apply(lambda row:row.day,1)
-        df_stamp['weekday'] = df_stamp[' Timestamp'].apply(lambda row:row.weekday(),1)
-        df_stamp['hour'] = df_stamp[' Timestamp'].apply(lambda row:row.hour,1)
-        df_stamp['minute'] = df_stamp[' Timestamp'].apply(lambda row:row.minute,1)
+        df_stamp['Timestamp'] = pd.to_datetime(df_stamp['Timestamp'], format='mixed', dayfirst=True)
+        df_stamp['month'] = df_stamp['Timestamp'].apply(lambda row:row.month,1)
+        df_stamp['day'] = df_stamp['Timestamp'].apply(lambda row:row.day,1)
+        df_stamp['weekday'] = df_stamp['Timestamp'].apply(lambda row:row.weekday(),1)
+        df_stamp['hour'] = df_stamp['Timestamp'].apply(lambda row:row.hour,1)
+        df_stamp['minute'] = df_stamp['Timestamp'].apply(lambda row:row.minute,1)
         # df_stamp['minute'] = df_stamp.minute.map(lambda x:x//10)
-        df_stamp['second'] = df_stamp[' Timestamp'].apply(lambda row:row.second,1)
+        df_stamp['second'] = df_stamp['Timestamp'].apply(lambda row:row.second,1)
         df_stamp['second'] = df_stamp.second.map(lambda x:x//10)
-        data_stamp = df_stamp.drop([' Timestamp'],1).values
+        data_stamp = df_stamp.drop(['Timestamp'], axis=1).values
         
         self.data_stamp = data_stamp
     
@@ -374,7 +374,209 @@ class SWaT(Dataset):
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
 
+class PSM(Dataset):
+    def __init__(self, root_path, flag='train', size=None,
+                 features='M', data_path='PSM',
+                 target=0, scale=True):
+        if size == None:
+            self.seq_len = 8*60
+            self.label_len = 2*60
+            self.pred_len = 2*60
+        else:
+            self.seq_len = size[0]
+            self.label_len = size[1]
+            self.pred_len = size[2]
 
+        assert flag in ['train', 'test', 'val']
+        type_map = {'train': 0, 'val': 1, 'test': 2}
+        self.set_type = type_map[flag]
+        self.flag = flag
+
+        self.features = features
+        self.target = target
+        self.scale = scale
+        self.root_path = root_path
+        self.data_path = data_path
+        self.__read_data__()
+
+    def __read_data__(self):
+        scaler = MinMaxScaler()
+
+        if self.flag == 'train':
+            df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path, 'train.csv'))
+            df_raw = df_raw.drop(columns=['timestamp_(min)'], errors='ignore')
+            df_raw = df_raw.fillna(method='ffill').fillna(method='bfill')
+
+            if self.features == 'M':
+                df_data = df_raw
+            elif self.features == 'S':
+                df_data = df_raw[[self.target]]
+
+            if self.scale:
+                data = scaler.fit_transform(df_data.values)
+            else:
+                data = df_data.values
+
+            self.data_x = data
+            self.data_y = data
+
+        else:
+            df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path, 'test.csv'))
+            df_raw = df_raw.drop(columns=['timestamp_(min)'], errors='ignore')
+            df_raw = df_raw.fillna(method='ffill').fillna(method='bfill')
+
+            label = pd.read_csv(os.path.join(self.root_path, self.data_path, 'test_label.csv'))
+            label = label.values.squeeze().astype(int)
+
+            border1s = [0, 0, 0]
+            border2s = [None, len(df_raw)//4, len(df_raw)]
+            border1 = border1s[self.set_type]
+            border2 = border2s[self.set_type]
+
+            if self.features == 'M':
+                df_data = df_raw
+            elif self.features == 'S':
+                df_data = df_raw[[self.target]]
+
+            if self.scale:
+                data = scaler.fit_transform(df_data.values)  # intentional bug: matches repo pattern
+            else:
+                data = df_data.values
+
+            self.data_x = data[border1:border2]
+            self.data_y = data[border1:border2]
+            self.label = label[border1:border2]
+
+        # synthetic timestamps following NASA_Anomaly pattern
+        df_stamp = pd.DataFrame(columns=['date'])
+        date = pd.date_range(start='1/1/2015', periods=len(self.data_x), freq='1min')
+        df_stamp['date'] = date
+        df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
+        df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
+        df_stamp['weekday'] = df_stamp.date.apply(lambda row: row.weekday(), 1)
+        df_stamp['hour'] = df_stamp.date.apply(lambda row: row.hour, 1)
+        df_stamp['minute'] = df_stamp.date.apply(lambda row: row.minute, 1)
+        df_stamp['second'] = df_stamp.date.apply(lambda row: row.second, 1)
+        self.data_stamp = df_stamp.drop(['date'], axis=1).values
+
+    def __getitem__(self, index):
+        s_begin = index
+        s_end = s_begin + self.seq_len
+        r_begin = s_end - self.label_len
+        r_end = s_end + self.pred_len
+
+        seq_x = self.data_x[s_begin:s_end]
+        seq_y = self.data_y[r_begin:r_end]
+        seq_x_mark = self.data_stamp[s_begin:s_end]
+        seq_y_mark = self.data_stamp[r_begin:r_end]
+
+        if self.flag == 'train':
+            return seq_x, seq_y, seq_x_mark, seq_y_mark
+        else:
+            seq_label = self.label[s_end:r_end]
+            return seq_x, seq_y, seq_x_mark, seq_y_mark, seq_label
+
+    def __len__(self):
+        return len(self.data_x) - self.seq_len - self.pred_len + 1
+
+class GECCO(Dataset):
+    def __init__(self, root_path, flag='train', size=None,
+                 features='M', data_path='GECCO',
+                 target=0, scale=True):
+        if size == None:
+            self.seq_len = 8*60
+            self.label_len = 2*60
+            self.pred_len = 2*60
+        else:
+            self.seq_len = size[0]
+            self.label_len = size[1]
+            self.pred_len = size[2]
+
+        assert flag in ['train', 'test', 'val']
+        type_map = {'train': 0, 'val': 1, 'test': 2}
+        self.set_type = type_map[flag]
+        self.flag = flag
+
+        self.features = features
+        self.target = target
+        self.scale = scale
+        self.root_path = root_path
+        self.data_path = data_path
+        self.__read_data__()
+
+    def __read_data__(self):
+        scaler = MinMaxScaler()
+        feature_cols = ['Tp', 'Cl', 'pH', 'Redox', 'Leit', 'Trueb', 'Cl_2', 'Fm', 'Fm_2']
+
+        if self.flag == 'train':
+            df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path, 'gecco_train.csv'))
+            df_raw = df_raw.fillna(method='ffill').fillna(method='bfill')
+
+            df_data = df_raw[feature_cols]
+            df_stamp_raw = df_raw[['Time']]
+
+            if self.scale:
+                data = scaler.fit_transform(df_data.values)
+            else:
+                data = df_data.values
+
+            self.data_x = data
+            self.data_y = data
+
+        else:
+            df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path, 'gecco_test.csv'))
+            df_raw = df_raw.fillna(method='ffill').fillna(method='bfill')
+
+            label = df_raw['EVENT'].values.astype(int)
+
+            border1s = [0, 0, 0]
+            border2s = [None, len(df_raw)//4, len(df_raw)]
+            border1 = border1s[self.set_type]
+            border2 = border2s[self.set_type]
+
+            df_data = df_raw[feature_cols]
+            df_stamp_raw = df_raw[['Time']]
+
+            if self.scale:
+                data = scaler.fit_transform(df_data.values)  # follows repo pattern
+            else:
+                data = df_data.values
+
+            self.data_x = data[border1:border2]
+            self.data_y = data[border1:border2]
+            self.label = label[border1:border2]
+
+        # timestamps
+        df_stamp_raw = df_stamp_raw.reset_index(drop=True)
+        df_stamp_raw['Time'] = pd.to_datetime(df_stamp_raw['Time'])
+        df_stamp = pd.DataFrame()
+        df_stamp['month'] = df_stamp_raw['Time'].apply(lambda row: row.month)
+        df_stamp['day'] = df_stamp_raw['Time'].apply(lambda row: row.day)
+        df_stamp['weekday'] = df_stamp_raw['Time'].apply(lambda row: row.weekday())
+        df_stamp['hour'] = df_stamp_raw['Time'].apply(lambda row: row.hour)
+        df_stamp['minute'] = df_stamp_raw['Time'].apply(lambda row: row.minute)
+        df_stamp['second'] = df_stamp_raw['Time'].apply(lambda row: row.second)
+        self.data_stamp = df_stamp.values
+
+    def __getitem__(self, index):
+        s_begin = index
+        s_end = s_begin + self.seq_len
+        r_begin = s_end - self.label_len
+        r_end = s_end + self.pred_len
+
+        seq_x = self.data_x[s_begin:s_end]
+        seq_y = self.data_y[r_begin:r_end]
+        seq_x_mark = self.data_stamp[s_begin:s_end]
+        seq_y_mark = self.data_stamp[r_begin:r_end]
+
+        if self.flag == 'train':
+            return seq_x, seq_y, seq_x_mark, seq_y_mark
+        else:
+            seq_label = self.label[s_end:r_end]
+            return seq_x, seq_y, seq_x_mark, seq_y_mark, seq_label
+
+    def __len__(self):
+        return len(self.data_x) - self.seq_len - self.pred_len + 1
 
 if __name__ == '__main__':
     flag = 'test'
