@@ -312,12 +312,22 @@ class Exp_GTA_DAD(Exp_Basic):
                 best_rec = recall_score(anomaly_labels, adjusted_preds, zero_division=0)
 
         # Step 4: compute AUC-ROC using raw anomaly scores
+        #from sklearn.metrics import roc_auc_score
+
+        #try:
+        #    auc = roc_auc_score(anomaly_labels, anomaly_scores)
+        #except ValueError:
+        #    # roc_auc_score fails if only one class present in labels
+        #    auc = 0.0
+        #    print('Warning: AUC could not be computed (only one class in labels)')
+        
+        # Step 4: compute AUC-ROC using point-adjusted binary predictions at best threshold
         from sklearn.metrics import roc_auc_score
 
         try:
-            auc = roc_auc_score(anomaly_labels, anomaly_scores)
+            best_adjusted_preds = point_adjust(anomaly_scores, anomaly_labels, best_thresh)
+            auc = roc_auc_score(anomaly_labels, best_adjusted_preds)
         except ValueError:
-            # roc_auc_score fails if only one class present in labels
             auc = 0.0
             print('Warning: AUC could not be computed (only one class in labels)')
 
