@@ -659,65 +659,7 @@ class SMDSegLoader(Dataset):
                 self.test_labels[index // self.step * self.win_size:index // self.step * self.win_size + self.win_size])
 
 
-class GECCOSegLoader(Dataset):
-    """Data loader for GECCO 2018 Water Quality dataset (Zenodo: 10.5281/zenodo.3884398)."""
-    def __init__(self, args, root_path, win_size, step=1, flag="train"):
-        self.flag = flag
-        self.step = step
-        self.win_size = win_size
-        self.scaler = StandardScaler()
 
-        train_path = os.path.join(root_path, "train.npy")
-        test_path = os.path.join(root_path, "test.npy")
-        label_path = os.path.join(root_path, "test_label.npy")
-
-        if not all(os.path.exists(p) for p in [train_path, test_path, label_path]):
-            raise FileNotFoundError(
-                f"GECCO dataset files not found in {root_path}. "
-                f"Run 'python scripts/prepare_gecco.py' first to download and prepare the data."
-            )
-
-        train_data = np.load(train_path)
-        test_data = np.load(test_path)
-        test_label = np.load(label_path)
-
-        self.scaler.fit(train_data)
-        train_data = self.scaler.transform(train_data)
-        test_data = self.scaler.transform(test_data)
-
-        self.train = train_data
-        self.test = test_data
-        self.test_labels = test_label
-
-        data_len = len(self.train)
-        self.val = self.train[int(data_len * 0.8):]
-
-        print("test:", self.test.shape)
-        print("train:", self.train.shape)
-
-    def __len__(self):
-        if self.flag == "train":
-            return (self.train.shape[0] - self.win_size) // self.step + 1
-        elif self.flag == 'val':
-            return (self.val.shape[0] - self.win_size) // self.step + 1
-        elif self.flag == 'test':
-            return (self.test.shape[0] - self.win_size) // self.step + 1
-        else:
-            return (self.test.shape[0] - self.win_size) // self.win_size + 1
-
-    def __getitem__(self, index):
-        index = index * self.step
-        if self.flag == "train":
-            return np.float32(self.train[index:index + self.win_size]), np.float32(self.test_labels[0:self.win_size])
-        elif self.flag == 'val':
-            return np.float32(self.val[index:index + self.win_size]), np.float32(self.test_labels[0:self.win_size])
-        elif self.flag == 'test':
-            return np.float32(self.test[index:index + self.win_size]), np.float32(
-                self.test_labels[index:index + self.win_size])
-        else:
-            return np.float32(self.test[
-                index // self.step * self.win_size:index // self.step * self.win_size + self.win_size]), np.float32(
-                self.test_labels[index // self.step * self.win_size:index // self.step * self.win_size + self.win_size])
 
 
 class SWATSegLoader(Dataset):

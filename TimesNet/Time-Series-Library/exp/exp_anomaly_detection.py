@@ -1,7 +1,7 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from utils.tools import EarlyStopping, adjust_learning_rate, adjustment
-from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support, roc_auc_score
 from sklearn.metrics import accuracy_score
 import torch.multiprocessing
 
@@ -182,6 +182,19 @@ class Exp_Anomaly_Detection(Exp_Basic):
         print("pred:   ", pred.shape)
         print("gt:     ", gt.shape)
 
+        # (3b) AUC — must be computed BEFORE point-adjust
+        # test_energy is the raw continuous reconstruction score (higher = more anomalous)
+        # gt is the raw ground truth labels (no adjustment applied yet)
+        # Point-adjust inflates F1 but AUC uses the continuous score directly,
+        # so it must be computed on the unadjusted labels to be meaningful
+        try:
+            auc = roc_auc_score(gt, test_energy)
+        except ValueError:
+            # roc_auc_score raises if only one class present in gt
+            auc = float('nan')
+            print("AUC: undefined (only one class in ground truth)")
+        
+
         # (4) detection adjustment
         gt, pred = adjustment(gt, pred)
 
@@ -192,15 +205,13 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         accuracy = accuracy_score(gt, pred)
         precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
-        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-            accuracy, precision,
-            recall, f_score))
+        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}".format(
+            accuracy, precision, recall, f_score, auc))
 
         f = open("result_anomaly_detection.txt", 'a')
         f.write(setting + "  \n")
-        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-            accuracy, precision,
-            recall, f_score))
+        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}".format(
+            accuracy, precision, recall, f_score, auc))
         f.write('\n')
         f.write('\n')
         f.close()
