@@ -1,7 +1,7 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from utils.tools import EarlyStopping, adjust_learning_rate, adjustment
-from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support, roc_auc_score
 from sklearn.metrics import accuracy_score
 import torch.multiprocessing
 
@@ -199,15 +199,23 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         accuracy = accuracy_score(gt, pred)
         precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
-        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-            accuracy, precision,
-            recall, f_score))
+
+        # (5) AUC-ROC using raw scores BEFORE point adjustment
+        # Important: AUC must be computed on raw scores against original labels,
+        # not on point-adjusted predictions
+        try:
+            auc = roc_auc_score(test_labels, test_energy)
+        except ValueError:
+            # catches edge case where all labels are the same class
+            auc = float('nan')
+
+        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}".format(
+            accuracy, precision, recall, f_score, auc))
 
         f = open("result_anomaly_detection.txt", 'a')
         f.write(setting + "  \n")
-        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-            accuracy, precision,
-            recall, f_score))
+        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}".format(
+            accuracy, precision, recall, f_score, auc))
         f.write('\n')
         f.write('\n')
         f.close()

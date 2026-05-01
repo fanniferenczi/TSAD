@@ -27,18 +27,15 @@ Specifically, this research aims to:
 
 ## Model Candidates
 
-The following eight models are evaluated and compared in this study:
+The following five models are evaluated and compared in this study:
 
-| Model            | Architecture Type             | Key Characteristics                                                                                                 |
-| ---------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **TimesNet**     | CNN-based (2D temporal)       | Transforms 1D time series into 2D tensors using multi-periodicity; uses inception blocks for 2D variation modeling. |
-| **DeepAnT**      | CNN-based                     | Lightweight convolutional model designed for unsupervised anomaly detection in time series.                         |
-| **TCN-ms**       | TCN variant                   | Temporal Convolutional Network with multi-scale feature extraction.                                                 |
-| **TinyAd**       | Lightweight / Edge-optimized  | Designed for deployment on constrained devices with minimal resource usage.                                         |
-| **ModernTCN**    | Modern TCN                    | Updated temporal convolutional architecture with improved representational capacity.                                |
-| **DACAD**        | Contrastive / Self-supervised | Domain-adversarial or contrastive learning approach to anomaly detection.                                           |
-| **TranAD**       | Transformer-based             | Transformer-based deep autoencoder for anomaly detection with adversarial training.                                 |
-| **RANSynCoders** | Synchronization-based         | Uses random sampling and encoder synchronization for multivariate anomaly detection.                                |
+| Model                     | Architecture Type       | Key Characteristics                                                                                                 |
+| ------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **TimesNet**              | CNN-based (2D temporal) | Transforms 1D time series into 2D tensors using multi-periodicity; uses inception blocks for 2D variation modeling. |
+| **ModernTCN**             | Modern TCN              | Updated temporal convolutional architecture with improved representational capacity.                                |
+| **TranAD**                | Transformer-based       | Transformer-based deep autoencoder for anomaly detection with adversarial training.                                 |
+| **Anomaly Transformer**   | Transformer-based       | Uses association discrepancy between attention patterns to distinguish anomalies from normal points.                 |
+| **GTA**                   | Graph Transformer       | Graph neural network combined with transformer for multivariate time-series anomaly detection.                      |
 
 ---
 
@@ -51,4 +48,3 @@ The following eight models are evaluated and compared in this study:
 | SMAP    | Spacecraft telemetry           | ~13%         |
 | SWaT    | Water treatment infrastructure | ~12%         |
 | PSM     | Server machine monitoring      | ~27%         |
-| GECCO   | IoT water quality (custom)     | ~0.45%       |
