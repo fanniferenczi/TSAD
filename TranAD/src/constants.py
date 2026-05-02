@@ -15,8 +15,6 @@ lm_d = {
 		'MBA': [(0.87, 1), (0.93, 1.04)],
 		# try:(0.9, 1.04) → (0.99, 1.04) → (0.991, 1.04) → (0.993, 1.04) → (0.993, 1.0) → (0.98, 1.04) 
 		'PSM': [(0.91, 1), (0.9, 1.04)],
-        # try: (0.9, 1.04) → (0.99,  1.04) → (0.999, 1.04) → (0.999, 1.0) → (0.9995, 1.04) → (0.9999, 1.04)
-		'GECCO': [(0.91, 1), (0.999, 1.04)], # best f1 score
 	}
 lm = lm_d[args.dataset][1 if 'TranAD' in args.model else 0]
 
@@ -34,7 +32,6 @@ lr_d = {
 		'MBA': 0.001, 
 		 # PSM: try 0.0001 → 0.0005 → 0.001 → 0.005 → 0.008
     	'PSM': 0.005, # best f1 score
-		'GECCO': 0.005,
 	}
 lr = lr_d[args.dataset]
 
@@ -51,7 +48,6 @@ percentiles = {
 		'NAB': (98, 2),
 		'MBA': (99, 2),
 		'PSM': (96, 30),
-		'GECCO': (96, 30),
 	}
 percentile_merlin = percentiles[args.dataset][0]
 cvp = percentiles[args.dataset][1]

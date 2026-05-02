@@ -244,58 +244,6 @@ class SWaTSegLoader(object):
                 self.test_labels[index // self.step * self.win_size:index // self.step * self.win_size + self.win_size])
 
 
-class GECCOSegLoader(object):
-    def __init__(self, data_path, win_size, step, mode="train"):
-        self.mode = mode
-        self.step = step
-        self.win_size = win_size
-        self.scaler = StandardScaler()
-
-        df = pd.read_csv(data_path + '/gecco2018_water_quality.csv', index_col=0)
-        df['EVENT'] = (df['EVENT'] == 'TRUE') | (df['EVENT'] == True)
-        labels = df['EVENT'].values.astype(float)
-        feature_cols = ['Tp', 'Cl', 'pH', 'Redox', 'Leit', 'Trueb', 'Cl_2', 'Fm', 'Fm_2']
-        data = df[feature_cols].values.astype(float)
-        data = np.nan_to_num(data)
-
-        # train on normal samples only
-        normal_mask = labels == 0
-        train_data = data[normal_mask]
-        self.scaler.fit(train_data)
-        self.train = self.scaler.transform(train_data)
-        data_len = len(self.train)
-        self.val = self.train[(int)(data_len * 0.8):]
-
-        self.test = self.scaler.transform(data)
-        self.test_labels = labels
-
-        print("test:", self.test.shape)
-        print("train:", self.train.shape)
-
-    def __len__(self):
-        if self.mode == "train":
-            return (self.train.shape[0] - self.win_size) // self.step + 1
-        elif self.mode == 'val':
-            return (self.val.shape[0] - self.win_size) // self.step + 1
-        elif self.mode == 'test':
-            return (self.test.shape[0] - self.win_size) // self.step + 1
-        else:
-            return (self.test.shape[0] - self.win_size) // self.win_size + 1
-
-    def __getitem__(self, index):
-        index = index * self.step
-        if self.mode == "train":
-            return np.float32(self.train[index:index + self.win_size]), np.float32(self.test_labels[0:self.win_size])
-        elif self.mode == 'val':
-            return np.float32(self.val[index:index + self.win_size]), np.float32(self.test_labels[0:self.win_size])
-        elif self.mode == 'test':
-            return np.float32(self.test[index:index + self.win_size]), np.float32(
-                self.test_labels[index:index + self.win_size])
-        else:
-            return np.float32(self.test[
-                              index // self.step * self.win_size:index // self.step * self.win_size + self.win_size]), np.float32(
-                self.test_labels[index // self.step * self.win_size:index // self.step * self.win_size + self.win_size])
-
 
 def get_loader_segment(data_path, batch_size, win_size=100, step=100, mode='train', dataset='KDD'):
     if (dataset == 'SMD'):
@@ -308,8 +256,6 @@ def get_loader_segment(data_path, batch_size, win_size=100, step=100, mode='trai
         dataset = PSMSegLoader(data_path, win_size, 1, mode)
     elif (dataset == 'SWaT'):
         dataset = SWaTSegLoader(data_path, win_size, step, mode)
-    elif (dataset == 'GECCO'):
-        dataset = GECCOSegLoader(data_path, win_size, step, mode)
 
     shuffle = False
     if mode == 'train':
