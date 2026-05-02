@@ -157,6 +157,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
         # (2) find the threshold
         attens_energy = []
         test_labels = []
+        test_inputs_list = []
+        test_outputs_list = []
         for i, (batch_x, batch_y) in enumerate(test_loader):
             batch_x = batch_x.float().to(self.device)
             # reconstruction
@@ -166,6 +168,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
             score = score.detach().cpu().numpy()
             attens_energy.append(score)
             test_labels.append(batch_y)
+            test_inputs_list.append(batch_x.detach().cpu().numpy())
+            test_outputs_list.append(outputs.detach().cpu().numpy())
 
         attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
         test_energy = np.array(attens_energy)
@@ -181,6 +185,31 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         print("pred:   ", pred.shape)
         print("gt:     ", gt.shape)
+
+        # save raw scores, labels, and predictions for per-anomaly analysis
+        np.save(os.path.join(folder_path, 'anomaly_scores.npy'), test_energy)
+        np.save(os.path.join(folder_path, 'ground_truth.npy'), gt)
+        np.save(os.path.join(folder_path, 'predictions_raw.npy'), pred)
+        np.save(os.path.join(folder_path, 'threshold.npy'), np.array([threshold]))
+
+        # save input/output tensors for detailed visualisation (float16 to save space)
+        # for step=1 datasets (sliding windows) subsample to raw time space first —
+        # this reduces file size by seq_len times without losing any information the
+        # visualisation needs (the viz cell would subsample by the same factor anyway)
+        n_features = test_inputs_list[0].shape[-1]
+        step_size  = test_data.step if hasattr(test_data, 'step') else 1
+        seq_len    = self.args.seq_len
+        sub = seq_len if step_size == 1 else 1
+        flat_in  = np.concatenate(test_inputs_list,  axis=0).reshape(-1, n_features)
+        flat_out = np.concatenate(test_outputs_list, axis=0).reshape(-1, n_features)
+        test_in  = flat_in[::sub].astype(np.float16)
+        test_out = flat_out[::sub].astype(np.float16)
+        est_mb   = test_in.nbytes / 1e6
+        np.save(os.path.join(folder_path, 'test_input.npy'),  test_in)
+        np.save(os.path.join(folder_path, 'test_output.npy'), test_out)
+        print(f"Saved test_input/output ({est_mb:.1f} MB each, float16, sub={sub})")
+        # step_size.npy is always seq_len — arrays are stored in raw time space
+        np.save(os.path.join(folder_path, 'step_size.npy'), np.array([seq_len]))
 
         # (3b) AUC — must be computed BEFORE point-adjust
         # test_energy is the raw continuous reconstruction score (higher = more anomalous)
@@ -212,6 +241,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         pred = np.array(pred)
         gt = np.array(gt)
+        np.save(os.path.join(folder_path, 'predictions_adjusted.npy'), pred)
         print("pred: ", pred.shape)
         print("gt:   ", gt.shape)
 
