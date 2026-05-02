@@ -4,7 +4,7 @@ from src.spot import SPOT
 from src.constants import *
 from sklearn.metrics import *
 
-def calc_point2point(predict, actual):
+def calc_point2point(predict, actual, raw_score=None):
     """
     calculate f1 score by predict and actual.
     Args:
@@ -22,7 +22,14 @@ def calc_point2point(predict, actual):
         roc_auc = roc_auc_score(actual, predict)
     except:
         roc_auc = 0
-    return f1, precision, recall, TP, TN, FP, FN, roc_auc
+
+    # Correct threshold-free AUC from continuous anomaly scores
+    try:
+        roc_auc_proper = roc_auc_score(actual, raw_score) if raw_score is not None else None
+    except:
+        roc_auc_proper = 0
+    
+    return f1, precision, recall, TP, TN, FP, FN, roc_auc, roc_auc_proper
 
 
 # the below function is taken from OmniAnomaly code base directly
@@ -148,7 +155,7 @@ def pot_eval(init_score, score, label, q=1e-5, level=0.02):
     pred, p_latency = adjust_predicts(score, label, pot_th, calc_latency=True)
     # DEBUG - np.save(f'{debug}.npy', np.array(pred))
     # DEBUG - print(np.argwhere(np.array(pred)))
-    p_t = calc_point2point(pred, label)
+    p_t = calc_point2point(pred, label, raw_score=score)
     # print('POT result: ', p_t, pot_th, p_latency)
     return {
         'f1': p_t[0],
@@ -159,6 +166,7 @@ def pot_eval(init_score, score, label, q=1e-5, level=0.02):
         'FP': p_t[5],
         'FN': p_t[6],
         'ROC/AUC': p_t[7],
+        'ROC/AUC_correct': p_t[8],   # proper threshold-free AUC
         'threshold': pot_th,
         # 'pot-latency': p_latency
     }, np.array(pred)

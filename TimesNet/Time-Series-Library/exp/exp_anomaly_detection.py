@@ -193,6 +193,18 @@ class Exp_Anomaly_Detection(Exp_Basic):
             # roc_auc_score raises if only one class present in gt
             auc = float('nan')
             print("AUC: undefined (only one class in ground truth)")
+
+        try:
+            auc = roc_auc_score(gt, test_energy)  # correct: continuous scores
+        except ValueError:
+            auc = float('nan')
+            print("AUC: undefined (only one class in ground truth)")
+
+        try:
+            auc_binary = roc_auc_score(gt, pred)  # degenerate: binary predictions
+        except ValueError:
+            auc_binary = float('nan')
+            print("AUC binary: undefined (only one class in ground truth)")
         
 
         # (4) detection adjustment
@@ -205,13 +217,13 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         accuracy = accuracy_score(gt, pred)
         precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
-        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}".format(
-            accuracy, precision, recall, f_score, auc))
+        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}, AUC_binary : {:0.4f}".format(
+            accuracy, precision, recall, f_score, auc, auc_binary))
 
         f = open("result_anomaly_detection.txt", 'a')
         f.write(setting + "  \n")
-        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}".format(
-            accuracy, precision, recall, f_score, auc))
+        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}, AUC_binary : {:0.4f}".format(
+            accuracy, precision, recall, f_score, auc, auc_binary))
         f.write('\n')
         f.write('\n')
         f.close()
