@@ -59,7 +59,6 @@ data_parser = {
     'SWaT':{'data':'SWaT','T':'FIT_101','M':51,'S':1},
     'SMD': {'data': 'machine', 'T': 0, 'M': 38, 'S': 1},
     'PSM': {'data': 'PSM', 'T': 0, 'M': 25, 'S': 1},
-    'GECCO': {'data': 'GECCO', 'T': 0, 'M': 9, 'S': 1},
 }
 if args.data in data_parser.keys():
     data_info = data_parser[args.data]

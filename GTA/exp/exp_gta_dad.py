@@ -3,7 +3,6 @@ from data.data_loader_dad import (
     NASA_Anomaly,
     WADI,
     SWaT,
-    GECCO
 )
 from exp.exp_basic import Exp_Basic
 from models.gta import GTA
@@ -66,7 +65,6 @@ class Exp_GTA_DAD(Exp_Basic):
             'WADI':WADI,
             'SWaT':SWaT,
             'PSM': PSM,
-            'GECCO': GECCO,
         }
         Data = data_dict[self.args.data]
 
@@ -312,26 +310,25 @@ class Exp_GTA_DAD(Exp_Basic):
                 best_rec = recall_score(anomaly_labels, adjusted_preds, zero_division=0)
 
         # Step 4: compute AUC-ROC using raw anomaly scores
-        #from sklearn.metrics import roc_auc_score
-
-        #try:
-        #    auc = roc_auc_score(anomaly_labels, anomaly_scores)
-        #except ValueError:
-        #    # roc_auc_score fails if only one class present in labels
-        #    auc = 0.0
-        #    print('Warning: AUC could not be computed (only one class in labels)')
-        
-        # Step 4: compute AUC-ROC using point-adjusted binary predictions at best threshold
         from sklearn.metrics import roc_auc_score
 
         try:
-            best_adjusted_preds = point_adjust(anomaly_scores, anomaly_labels, best_thresh)
-            auc = roc_auc_score(anomaly_labels, best_adjusted_preds)
+            auc_raw = roc_auc_score(anomaly_labels, anomaly_scores)
         except ValueError:
-            auc = 0.0
-            print('Warning: AUC could not be computed (only one class in labels)')
+            # roc_auc_score fails if only one class present in labels
+            auc_raw = 0.0
+            print('Warning: AUC (raw) could not be computed (only one class in labels)')
 
-        print(f'AUC-ROC:   {auc:.4f}')
+        # Step 5: compute AUC-ROC using point-adjusted binary predictions at best threshold
+        try:
+            best_adjusted_preds = point_adjust(anomaly_scores, anomaly_labels, best_thresh)
+            auc_adjusted = roc_auc_score(anomaly_labels, best_adjusted_preds)
+        except ValueError:
+            auc_adjusted = 0.0
+            print('Warning: AUC (adjusted) could not be computed (only one class in labels)')
+
+        print(f'AUC-ROC (raw scores):     {auc_raw:.4f}')
+        print(f'AUC-ROC (point-adjusted): {auc_adjusted:.4f}')
         print(f'Best threshold: {best_thresh:.6f}')
         print(f'Precision: {best_prec:.4f}')
         print(f'Recall:    {best_rec:.4f}')
@@ -339,7 +336,7 @@ class Exp_GTA_DAD(Exp_Basic):
 
         # save results
         np.save(folder_path+'anomaly_scores.npy', anomaly_scores)
-        results_dict = {'precision': best_prec, 'recall': best_rec, 'f1': best_f1, 'threshold': best_thresh, 'auc': auc}
+        results_dict = {'precision': best_prec, 'recall': best_rec, 'f1': best_f1, 'threshold': best_thresh, 'auc_raw': auc_raw, 'auc_adjusted': auc_adjusted}
         print('Anomaly detection results:', results_dict)
 
         return

@@ -1,6 +1,15 @@
 import os
+import sys
 import pickle
 import numpy as np
+
+# Pickle files saved with numpy>=1.25 reference numpy._core which doesn't
+# exist in numpy<1.25. Remap it to numpy.core so loading still works.
+if not hasattr(np, '_core'):
+    import numpy.core as _np_core
+    sys.modules.setdefault('numpy._core', _np_core)
+    sys.modules.setdefault('numpy._core.multiarray', _np_core.multiarray)
+    sys.modules.setdefault('numpy._core.numeric', _np_core.numeric)
 import pandas as pd
 
 import torch
@@ -479,104 +488,6 @@ class PSM(Dataset):
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
 
-class GECCO(Dataset):
-    def __init__(self, root_path, flag='train', size=None,
-                 features='M', data_path='GECCO',
-                 target=0, scale=True):
-        if size == None:
-            self.seq_len = 8*60
-            self.label_len = 2*60
-            self.pred_len = 2*60
-        else:
-            self.seq_len = size[0]
-            self.label_len = size[1]
-            self.pred_len = size[2]
-
-        assert flag in ['train', 'test', 'val']
-        type_map = {'train': 0, 'val': 1, 'test': 2}
-        self.set_type = type_map[flag]
-        self.flag = flag
-
-        self.features = features
-        self.target = target
-        self.scale = scale
-        self.root_path = root_path
-        self.data_path = data_path
-        self.__read_data__()
-
-    def __read_data__(self):
-        scaler = MinMaxScaler()
-        feature_cols = ['Tp', 'Cl', 'pH', 'Redox', 'Leit', 'Trueb', 'Cl_2', 'Fm', 'Fm_2']
-
-        if self.flag == 'train':
-            df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path, 'gecco_train.csv'))
-            df_raw = df_raw.fillna(method='ffill').fillna(method='bfill')
-
-            df_data = df_raw[feature_cols]
-            df_stamp_raw = df_raw[['Time']]
-
-            if self.scale:
-                data = scaler.fit_transform(df_data.values)
-            else:
-                data = df_data.values
-
-            self.data_x = data
-            self.data_y = data
-
-        else:
-            df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path, 'gecco_test.csv'))
-            df_raw = df_raw.fillna(method='ffill').fillna(method='bfill')
-
-            label = df_raw['EVENT'].values.astype(int)
-
-            border1s = [0, 0, 0]
-            border2s = [None, len(df_raw)//4, len(df_raw)]
-            border1 = border1s[self.set_type]
-            border2 = border2s[self.set_type]
-
-            df_data = df_raw[feature_cols]
-            df_stamp_raw = df_raw[['Time']]
-
-            if self.scale:
-                data = scaler.fit_transform(df_data.values)  # follows repo pattern
-            else:
-                data = df_data.values
-
-            self.data_x = data[border1:border2]
-            self.data_y = data[border1:border2]
-            self.label = label[border1:border2]
-
-        # timestamps
-        df_stamp_raw = df_stamp_raw.reset_index(drop=True)
-        df_stamp_raw['Time'] = pd.to_datetime(df_stamp_raw['Time'])
-        df_stamp = pd.DataFrame()
-        df_stamp['month'] = df_stamp_raw['Time'].apply(lambda row: row.month)
-        df_stamp['day'] = df_stamp_raw['Time'].apply(lambda row: row.day)
-        df_stamp['weekday'] = df_stamp_raw['Time'].apply(lambda row: row.weekday())
-        df_stamp['hour'] = df_stamp_raw['Time'].apply(lambda row: row.hour)
-        df_stamp['minute'] = df_stamp_raw['Time'].apply(lambda row: row.minute)
-        df_stamp['second'] = df_stamp_raw['Time'].apply(lambda row: row.second)
-        self.data_stamp = df_stamp.values
-
-    def __getitem__(self, index):
-        s_begin = index
-        s_end = s_begin + self.seq_len
-        r_begin = s_end - self.label_len
-        r_end = s_end + self.pred_len
-
-        seq_x = self.data_x[s_begin:s_end]
-        seq_y = self.data_y[r_begin:r_end]
-        seq_x_mark = self.data_stamp[s_begin:s_end]
-        seq_y_mark = self.data_stamp[r_begin:r_end]
-
-        if self.flag == 'train':
-            return seq_x, seq_y, seq_x_mark, seq_y_mark
-        else:
-            seq_label = self.label[s_end:r_end]
-            return seq_x, seq_y, seq_x_mark, seq_y_mark, seq_label
-
-    def __len__(self):
-        return len(self.data_x) - self.seq_len - self.pred_len + 1
 
 if __name__ == '__main__':
     flag = 'test'
