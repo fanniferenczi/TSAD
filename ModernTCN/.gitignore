@@ -6,3 +6,6 @@ __pycache__/
 
 # checkpoints
 checkpoints/
+
+analysis_plots/
+test_results/

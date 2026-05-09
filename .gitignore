@@ -2,3 +2,6 @@
 
 #datasets
 datasets/
+
+test_results/
+analysis_plots/

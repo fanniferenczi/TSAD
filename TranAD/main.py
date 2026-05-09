@@ -326,8 +326,9 @@ if __name__ == '__main__':
 	loss, y_pred = backprop(0, model, testD, testO, optimizer, scheduler, training=False)
 
 	### Plot curves
+	testO_viz = testO  # keep reference before possible roll
 	if not args.test:
-		if 'TranAD' in model.name: testO = torch.roll(testO, 1, 0) 
+		if 'TranAD' in model.name: testO = torch.roll(testO, 1, 0)
 		plotter(f'{args.model}_{args.dataset}', testO, y_pred, loss, labels)
 
 	### Scores
@@ -341,10 +342,23 @@ if __name__ == '__main__':
 	# pd.DataFrame(preds, columns=[str(i) for i in range(10)]).to_csv('labels.csv')
 	lossTfinal, lossFinal = np.mean(lossT, axis=1), np.mean(loss, axis=1)
 	labelsFinal = (np.sum(labels, axis=1) >= 1) + 0
-	result, _ = pot_eval(lossTfinal, lossFinal, labelsFinal)
+	result, pred_adjusted = pot_eval(lossTfinal, lossFinal, labelsFinal)
 	result.update(hit_att(loss, labels))
 	result.update(ndcg(loss, labels))
 	print(df)
 	pprint(result)
 	# pprint(getresults2(df, result))
 	# beep(4)
+
+	### Save analysis files for visualisation
+	save_dir = f'test_results/anomaly_detection_{args.dataset}_TranAD'
+	os.makedirs(save_dir, exist_ok=True)
+	pred_raw = (lossFinal > result['threshold']).astype(int)
+	np.save(os.path.join(save_dir, 'anomaly_scores.npy'),       lossFinal)
+	np.save(os.path.join(save_dir, 'ground_truth.npy'),         labelsFinal)
+	np.save(os.path.join(save_dir, 'predictions_raw.npy'),      pred_raw)
+	np.save(os.path.join(save_dir, 'threshold.npy'),            np.array([result['threshold']]))
+	np.save(os.path.join(save_dir, 'predictions_adjusted.npy'), np.array(pred_adjusted).astype(int))
+	np.save(os.path.join(save_dir, 'test_input.npy'),           testO_viz.numpy().astype(np.float16))
+	np.save(os.path.join(save_dir, 'test_output.npy'),          y_pred.astype(np.float16))
+	print(f"Saved analysis files to {save_dir}/")
