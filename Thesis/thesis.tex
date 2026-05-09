@@ -1,0 +1,868 @@
+\documentclass[twoside,11pt,openright]{report}
+
+\usepackage[latin1]{inputenc}
+\usepackage[american]{babel}
+\usepackage{a4}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{epsfig}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage{color}
+\usepackage{epstopdf}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage[useregional]{datetime2}
+\DTMlangsetup[en-US]{showdayofmonth=false}
+\usepackage{lipsum}
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{caption}
+
+\renewcommand*\sfdefault{lmss}
+\renewcommand*\ttdefault{txtt}
+
+\newcommand{\todo}[1]{{\color[rgb]{.5,0,0}\textbf{$\blacktriangleright$#1$\blacktriangleleft$}}}
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\pagestyle{empty} 
+\pagenumbering{roman} 
+\vspace*{\fill}\noindent{\rule{\linewidth}{1mm}\\[4ex]
+{\Huge\sf Efficient Time-Series Anomaly Detection for IoT Systems}\\[2ex]
+{\huge\sf Fanni Ferenczi, 202402635}\\[2ex]
+\noindent\rule{\linewidth}{1mm}\\[4ex]
+\noindent{\Large\sf Master's Thesis, Computer Science\\[1ex] 
+\today \\[1ex] Advisors: Qi Zhang, Gin\'es Carreto Pic\'on\\[15ex]}\\[\fill]}
+\epsfig{file=logo.eps}\clearpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\pagestyle{plain}
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+\todo{in English\dots}
+
+\chapter*{Resum\'e}
+\addcontentsline{toc}{chapter}{Resum\'e}
+
+\todo{in Danish\dots}
+
+\chapter*{Acknowledgments}
+\addcontentsline{toc}{chapter}{Acknowledgments}
+
+\todo{\dots}
+
+\vspace{2ex}
+\begin{flushright}
+  \emph{Karsken Bælg,}\\
+  \emph{Aarhus, \today.}
+\end{flushright}
+
+\tableofcontents
+\cleardoublepage
+\pagenumbering{arabic}
+\setcounter{secnumdepth}{2}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Introduction}
+\label{ch:intro}
+
+\todo{motivate and explain the problem to be addressed}
+
+\todo{example of a citation: \cite{DBLP:conf/sas/ChristensenMS03}}
+\todo{get your bibtex entries from \url{https://dblp.org/}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Related Work}
+
+\section{Anomalies in Time Series}
+The detection of anomalies --- also referred to as outlier or novelty detection --- has been an active area of research across numerous application domains since the 1960s \citep{darban2024survey}.
+With the growth of computational power and data availability, time series analysis has become increasingly central to addressing real-world problems through forecasting, classification, and anomaly detection.
+Time Series Anomaly Detection (TSAD) has received growing attention due to its applicability across domains including urban management, intrusion detection, medical risk assessment, and natural disaster monitoring \citep{darban2024survey}.
+
+\subsection{Time Series: Definitions and Types}
+A \textbf{time series} is a series of data points indexed sequentially over time, with the most common form being a sequence of observations recorded at regular intervals \citep{darban2024survey}.
+Time series are broadly divided into two types based on dimensionality.
+
+\subsubsection{Univariate Time Series}
+ 
+A univariate time series (UTS) consists of a single variable that changes over time.
+Recording the humidity level every hour throughout a day is a typical example.
+Formally, a UTS with $t$ timestamps is represented as an ordered sequence:
+ 
+\begin{equation}
+    \mathbf{X} = (x_1,\, x_2,\, \ldots,\, x_t)
+    \label{eq:uts}
+\end{equation}
+ 
+\noindent where $x_i$ represents the observation at timestamp $i \in \mathcal{T}$ and $\mathcal{T} = \{1, 2, \ldots, t\}$ \citep{darban2024survey}.
+ 
+\subsubsection{Multivariate Time Series}
+ 
+A multivariate time series (MTS) represents multiple variables that simultaneously depend on time.
+Each variable is influenced both by its own past values (\textit{temporal} dependency) and by other variables (\textit{spatial} or \textit{intermetric} dependency).
+Formally, an MTS with $d$ dimensions over $t$ timestamps is represented as:
+ 
+\begin{equation}
+    \mathbf{X} = (X_1,\, X_2,\, \ldots,\, X_t), \quad
+    X_i = \bigl(x_i^1,\, x_i^2,\, \ldots,\, x_i^d\bigr)
+    \label{eq:mts}
+\end{equation}
+ 
+\noindent where $x_i^j$ denotes the observation of the $j$-th dimension at time $i$, and $d$ is the total number of dimensions \citep{darban2024survey}.
+
+
+\subsection{Anomalies in Time Series}
+
+An \textbf{anomaly} refers to a deviation from the general distribution of data --- either a single observation (\textit{point anomaly}) or a series of observations (\textit{subsequence anomaly}) that deviates significantly from the norm.
+In real-world data, anomalies constitute only a small fraction of observations; the dataset mostly follows a normal pattern \citep{darban2024survey}.
+ 
+Anomalies in time series can be classified as \textbf{temporal}, \textbf{intermetric}, or \textbf{temporal-intermetric} \citep{darban2024survey}, as illustrated in Figure~\ref{fig:anomaly_types}..
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{fig_anomaly_types.png}
+    \caption{%
+        Overview of anomaly types in time series.
+        \textbf{(a)}~Temporal anomalies in a univariate time series (UTS): 
+        global and contextual anomalies occur at individual points (blue), 
+        while seasonal, trend, and shapelet anomalies span subsequences (red).
+        \textbf{(b)}~Intermetric and temporal-intermetric anomalies in a 
+        multivariate time series (MTS), where Metric~1 is power consumption 
+        and Metric~2 is CPU usage.
+        Figure reproduced from \citep{darban2024survey}.%
+    }
+    \label{fig:anomaly_types}
+\end{figure}
+ 
+\subsubsection{Temporal Anomalies}
+ 
+Temporal anomalies can be compared against neighbouring points (\textit{local}) or the entire series (\textit{global}), and they manifest in several distinct forms \citep{darban2024survey}:
+ 
+\begin{itemize}
+ 
+    \item \textbf{Global anomaly:}
+    Spikes in the series where a point has an extreme value compared to the rest of the series (e.g., an unusually large payment on a typical day).
+    Detected when:
+    \begin{equation}
+        |x_t - \hat{x}_t| > \theta
+        \label{eq:global}
+    \end{equation}
+    where $\hat{x}_t$ is the model's expected output and $\theta$ is a threshold.
+ 
+    \item \textbf{Contextual anomaly:}
+    A deviation from a local neighbourhood --- a value that is normal in one context but anomalous in another (e.g., high transaction volume is normal on a public holiday but anomalous on a regular weekday).
+    The threshold is determined by local variance:
+    \begin{equation}
+        \theta \approx \lambda \cdot \mathrm{var}(X_{t-w:t})
+        \label{eq:contextual}
+    \end{equation}
+    where $X_{t-w:t}$ is the context window of size $w$ and $\lambda$ is a scaling coefficient.
+ 
+    \item \textbf{Seasonal anomaly:}
+    An unusual seasonality pattern despite otherwise normal shape and trend --- the frequency of rises and drops in a specific segment differs from the expected seasonal cycle.
+    Detected via:
+    \begin{equation}
+        \mathrm{diss}_s(S,\, \hat{S}) > \theta
+        \label{eq:seasonal}
+    \end{equation}
+    where $S$ is the observed seasonality, $\hat{S}$ is the expected seasonality, and $\mathrm{diss}_s$ measures their dissimilarity.
+ 
+    \item \textbf{Trend anomaly:}
+    A permanent shift in the data's mean that alters the slope of the time series, while preserving its cycle and seasonality (e.g., a metric that rises abruptly and then drops following an external event).
+    Detected via:
+    \begin{equation}
+        \mathrm{diss}_t(T,\, \hat{T}) > \theta
+        \label{eq:trend}
+    \end{equation}
+ 
+    \item \textbf{Shapelet anomaly:}
+    A subsequence whose shape or cycle pattern differs distinctly from the rest of the series (e.g., unusual economic fluctuation patterns due to demand-supply shocks).
+    Detected via:
+    \begin{equation}
+        \mathrm{diss}_c(C,\, \hat{C}) > \theta
+        \label{eq:shapelet}
+    \end{equation}
+ 
+\end{itemize}
+ 
+\subsubsection{Intermetric Anomalies}
+
+In an MTS, anomalies can also arise from a breakdown of spatial correlations between
+dimensions. An \textbf{intermetric anomaly} occurs when the correlation between two or
+more dimensions deteriorates within a time window, even though each individual dimension
+appears normal in isolation \citep{darban2024survey}. As illustrated in
+Figure~\ref{fig:anomaly_types}(b) (around $t \approx 100$), Metric~1 (power consumption)
+and Metric~2 (CPU usage) are positively correlated under normal conditions --- both
+signals follow a similar square-wave pattern. The intermetric anomaly (shaded in red)
+marks the region where this correlation breaks down: Metric~1 exhibits an elevated spike
+while Metric~2 remains flat, violating the expected joint behaviour despite neither
+dimension being individually extreme.
+
+\subsubsection{Temporal-Intermetric Anomalies}
+
+\textbf{Temporal-intermetric anomalies} simultaneously violate both temporal patterns
+and intermetric dependencies \citep{darban2024survey}. As shown in
+Figure~\ref{fig:anomaly_types}(b) (around $t \approx 215$), the anomaly visible in
+Metric~1 is not only a local spike that deviates from the expected temporal pattern of
+that dimension, but also disrupts the correlation with Metric~2, which simultaneously
+exhibits an inverted dip. This joint violation across time and dimensions makes
+temporal-intermetric anomalies more complex to model, yet their multi-dimensional
+footprint can also make them easier to detect than purely temporal or purely intermetric
+anomalies \citep{darban2024survey}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Traditional Detection Methods}
+
+Before the widespread adoption of deep learning, TSAD relied on several classical strategies \citep{darban2024survey}:
+ 
+\begin{itemize}
+    \item \textbf{Statistical methods:} Learn a statistical model of normal behaviour and flag deviations from it. Interpretable but limited in capturing complex, non-linear patterns.
+    \item \textbf{Clustering-based methods:} Learn a normal profile of time series windows and use the distance to the centroid of normal clusters as an anomaly score, or identify clusters with few members as anomalous.
+    \item \textbf{Distance-based methods:} Use the distance from a time window to its nearest neighbours as an anomaly score.
+    \item \textbf{Density-based methods:} Estimate the local density of data points; windows falling in low-density regions are flagged as anomalies.
+\end{itemize}
+ 
+\noindent These methods exhibit significant limitations when applied to complex, high-dimensional time series with both spatial and temporal dependencies, motivating the shift towards deep learning approaches.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Deep Models for Time Series Anomaly Detection}
+
+Deep learning has become increasingly capable of learning expressive representations of complex time series, including multidimensional data with both spatial (intermetric) and temporal characteristics.
+In deep anomaly detection, neural networks are used to learn feature representations or anomaly scores in order to detect anomalies.
+Many deep anomaly detection models have been developed, providing significantly higher performance than traditional TSAD methods across a wide range of real-world applications \citep{darban2024survey}.
+A range of deep architectures has been explored for anomaly detection, including:
+ 
+\begin{itemize}
+    \item \textbf{Recurrent Neural Networks (RNN),} including Long Short-Term Memory (LSTM) and Gated Recurrent Unit (GRU);
+    \item \textbf{Convolutional Neural Networks (CNN),} including Temporal Convolutional Networks (TCN) and ResNet;
+    \item \textbf{Autoencoders (AE),} including Sparse AE (SAE), Denoising AE (DAE), Convolutional AE (CAE), and Variational AE (VAE);
+    \item \textbf{Generative Adversarial Networks (GAN);}
+    \item \textbf{Graph Neural Networks (GNN),} including Graph Convolutional Networks (GCN) and Graph Attention Networks (GAT);
+    \item \textbf{Transformers;}
+    \item \textbf{Hierarchical Temporal Memory (HTM).}
+\end{itemize}
+ 
+Deep TSAD models process inputs either point-by-point or using sliding windows, and output either continuous anomaly scores or binary labels \citep{darban2024survey}.
+Common thresholding methods applied to anomaly scores include 
+Nonparametric Dynamic Thresholding (NDT) \citep{hundman2018ndt} 
+and Peaks-Over-Threshold (POT) \citep{siffer2017pot}.
+ 
+\subsubsection{Learning Schemes}
+ 
+Deep TSAD models operate under four learning paradigms \citep{darban2024survey}:
+ 
+\begin{itemize}
+    \item \textbf{Unsupervised:} No labels are used; anomaly detection relies solely on intrinsic features of the data. This is the most flexible scheme and is suitable for streaming applications, though evaluation is more challenging.
+    \item \textbf{Semi-supervised:} Trained exclusively on labelled \textit{normal} data; deviations from the learned normal distribution are flagged as anomalies.
+    \item \textbf{Supervised:} Uses a fully labelled dataset containing both normal and anomalous examples. It can produce appropriate threshold value, but impractical in many real-world settings where anomalies are unlabelled.
+    \item \textbf{Self-supervised:} The model generates its own supervisory signal from the input data without explicit labels, typically via contrastive learning or data augmentation strategies.
+\end{itemize}
+ 
+% ------------------------------------------------------------
+\subsection{Deep Learning Approaches in TSAD}
+\label{sec:dl_approaches}
+% ------------------------------------------------------------
+ 
+The deep learning literature on TSAD is commonly structured around four
+main detection approaches: \textbf{forecasting-based},
+\textbf{reconstruction-based}, \textbf{representation-based}, and
+\textbf{hybrid} \citep{darban2024survey}.
+ 
+\subsubsection{Forecasting-Based Approach}
+\label{sec:forecasting_based}
+ 
+Forecasting-based models learn to predict future values of a time series and use the prediction error as an anomaly score:
+the larger the deviation between the predicted and actual value, the more anomalous the observation is considered.
+Most forecasting methods employ a sliding window to forecast one point at a time \citep{darban2024survey}.
+ 
+This approach performs well when normal behaviour is abundant and anomalous behaviour is rare.
+However, it struggles with rapidly changing time series where future states are fundamentally unpredictable \citep{darban2024survey}.
+ 
+ 
+\subsubsection{Reconstruction-Based Approach}
+\label{sec:reconstruction_based}
+ 
+Reconstruction-based models encode subsequences of normal training data into a low-dimensional latent space and then reconstruct them.
+The underlying hypothesis is that anomalous subsequences --- which are unseen during training --- will be reconstructed with higher error than normal patterns.
+This reconstruction error constitutes the anomaly score \citep{darban2024survey}.
+ 
+Unlike forecasting-based models, reconstruction-based models have access to the \textit{current} time series window, enabling more accurate detection.
+They are preferred when high accuracy is paramount and some detection delay is acceptable \citep{darban2024survey}.
+ 
+\subsubsection{Representation-Based Approach}
+\label{sec:representation_based}
+ 
+Representation-based models focus on learning rich, generalisable latent representations of time series that can subsequently be used for anomaly detection as a downstream task.
+Rather than operating in raw input space, anomaly detection is performed in the learned latent space.
+These models are particularly useful when labelled data is scarce, as they commonly operate under unsupervised or self-supervised learning schemes.  \citep{darban2024survey}.
+ 
+\subsubsection{Hybrid Approach}
+\label{sec:hybrid}
+ 
+Hybrid models integrate the strengths of multiple approaches --- for example, combining forecasting and reconstruction objectives within a single joint optimisation framework.
+This allows the model to simultaneously benefit from prediction accuracy and latent space regularity \citep{darban2024survey}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Chosen Models}
+
+\section{TimesNet}
+TimesNet \citep{timesnet2023} is a task-general deep learning backbone for time series
+analysis. Rather than targeting a single task, TimesNet is designed to perform competitively across five mainstream time
+series analysis tasks simultaneously: short- and long-term forecasting, imputation,
+classification, and anomaly detection \citep{timesnet2023}. In the context of this
+thesis, it is evaluated strictly as an anomaly detection model.
+
+\subsection{Multi-Periodicity and 2D Variation Modelling}
+
+The central observation motivating TimesNet is that real-world time series
+exhibit \textbf{multi-periodicity} --- for instance, daily and yearly variations in
+weather data, or weekly and quarterly cycles in electricity consumption
+\citep{timesnet2023}. Within each period, two distinct types of temporal variation
+coexist:
+
+\begin{itemize}
+    \item \textbf{Intraperiod-variation}: short-term temporal patterns within a
+    single period (captured along columns of a reshaped 2D tensor);
+    \item \textbf{Interperiod-variation}: long-term trends across consecutive
+    periods (captured along rows of the reshaped 2D tensor).
+\end{itemize}
+
+\noindent The key insight is that a 1D time series cannot explicitly represent both
+variation types simultaneously. TimesNet addresses this by transforming the 1D
+series into a set of 2D tensors --- one per dominant period --- allowing both
+variation types to be modelled jointly using 2D convolutional kernels
+\citep{timesnet2023}.
+
+\subsection{Architecture}
+The overall architecture of TimesNet consists of $N$ stacked \textbf{TimesBlocks}
+connected residually, as shown in Figure~\ref{fig:timesnet_architecture}. Each
+TimesBlock transforms its 1D input representation and returns an enriched 1D
+output of the same length, which is passed to the next block. The full processing
+pipeline within a single TimesBlock proceeds in three conceptual stages
+\citep{timesnet2023}:
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{timesnet2.png}
+    \caption{Overall architecture of TimesNet (left) and the internal data flow
+    of a single TimesBlock (right). The 1D input is first transformed into $k$
+    structured 2D tensors via FFT-based period discovery and reshaping. Each
+    tensor is processed by a shared parameter-efficient inception block in 2D
+    space. The resulting representations are projected back to 1D and fused
+    via amplitude-weighted adaptive aggregation to produce the output.
+    Figure reproduced from \citep{timesnet2023}.}
+    \label{fig:timesnet_architecture}
+\end{figure}
+
+\paragraph{Period discovery.}
+The dominant periodicities of the input signal are identified automatically using
+Fast Fourier Transform (FFT). The top-$k$ frequencies by spectral amplitude are
+selected, each corresponding to a distinct period length. This step is fully
+data-driven and requires no prior domain knowledge about the periodicity structure
+of the time series \citep{timesnet2023}.
+
+\paragraph{1D-to-2D transformation and representation learning.}
+For each of the $k$ discovered periods, the 1D input is reshaped into a 2D tensor,
+where columns correspond to within-period time points (intraperiod-variation) and
+rows correspond to the same phase across successive periods (interperiod-variation).
+Each 2D tensor is then processed by a \textbf{shared parameter-efficient inception
+block} \citep{szegedy2015inception}, which applies multi-scale 2D convolutional
+kernels to capture both variation types jointly. Because the same inception block
+is shared across all $k$ tensors, the total number of model parameters remains
+constant regardless of how many periods are selected --- a property that is
+particularly relevant for deployment in resource-constrained environments
+\citep{timesnet2023}.
+
+\paragraph{Adaptive aggregation.}
+The $k$ processed 2D representations are projected back to 1D space and fused into
+a single output using the FFT spectral amplitudes as importance weights. Periods
+with stronger spectral amplitude contribute more to the final representation,
+ensuring that dominant periodicities have greater influence on the output
+\citep{timesnet2023}.
+
+\subsection{Anomaly Detection Approach}
+
+TimesNet applies a \textbf{reconstruction-based} anomaly detection strategy. During
+training on normal data, the model learns to reconstruct input windows with low
+error. At inference time, anomalies are identified as time points whose
+reconstruction error exceeds a threshold. 
+
+
+
+\section{ModernTCN}
+
+ModernTCN \citep{moderntcn2024} is a pure convolution-based backbone for general
+time series analysis. Like
+TimesNet, it targets five mainstream time series analysis tasks simultaneously ---
+short- and long-term forecasting, imputation, classification, and anomaly detection --- but takes a
+fundamentally different approach: rather than transforming the time series into 2D
+space, ModernTCN stays in 1D and instead modernises the convolution operation itself
+\citep{moderntcn2024}. In the context of this thesis, it is evaluated strictly as an
+anomaly detection model.
+
+\subsection{Bringing Convolution Back}
+
+The central argument of ModernTCN is that convolution-based models fell behind
+Transformer-based models not because convolution is inherently limited, but because
+previous convolution designs had a too-small \textbf{Effective Receptive Field (ERF)}
+--- that is, they could only see a narrow window of the input at a time, making it
+difficult to capture long-term temporal dependencies \citep{moderntcn2024}. Meanwhile,
+Transformers with their global attention mechanism can in principle attend to any
+part of the sequence, which is why they outperformed traditional temporal convolutional
+networks (TCNs).
+
+ModernTCN addresses this by drawing inspiration from recent advances in computer vision,
+where modern convolution designs \citep{liu2022convnext} have shown that a redesigned
+convolution block --- borrowing structural ideas from Transformers and using much larger
+kernel sizes --- can match or exceed Transformer performance while retaining the speed
+and memory efficiency of convolution \citep{moderntcn2024}. The key insight is that
+enlarging the kernel size is a far more effective way to grow the receptive field than
+stacking many small-kernel layers, as the ERF grows linearly with kernel size but only
+sub-linearly with depth \citep{moderntcn2024}.
+
+\subsection{Architecture}
+
+The overall architecture of ModernTCN follows the same residual stacking pattern as
+TimesNet: a series of \textbf{ModernTCN blocks} connected residually, preceded by a
+patch embedding layer that converts the raw input into a sequence of fixed-size patch
+tokens. Unlike many Transformer-based models that collapse all variables into a single
+embedding, ModernTCN embeds each variable \textit{independently}, explicitly preserving
+the variable dimension throughout the network so that both temporal and cross-variable
+dependencies can be modelled separately and explicitly \citep{moderntcn2024}.
+
+Each ModernTCN block, illustrated in Figure~\ref{fig:moderntcn_block}(d), is structured
+similarly to a Transformer block but implemented entirely with convolutions. It contains
+three components that each handle a distinct type of information mixing
+\citep{moderntcn2024}:
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{moderntcn_block.png}
+    \caption{ModernTCN block design. The block separates temporal mixing (DWConv),
+    per-variable feature learning (ConvFFN1), and cross-variable dependency capture
+    (ConvFFN2) into three decoupled operations. $M$, $N$, and $D$ denote the variable,
+    temporal, and feature dimensions respectively.
+    Figure reproduced from \citep{moderntcn2024}.}
+    \label{fig:moderntcn_block}
+\end{figure}
+
+The first component, \textbf{DWConv}, is a depthwise convolution with a large kernel
+--- by default size 51 --- applied independently per channel along the temporal
+dimension. This is the component responsible for capturing temporal dependencies, and
+the large kernel is what gives ModernTCN its wide effective receptive field. Each
+channel operates independently here, so no information is mixed across variables or
+features at this stage \citep{moderntcn2024}.
+
+The second and third components together form a decoupled feed-forward network.
+\textbf{ConvFFN1} mixes information across the feature dimension within each variable
+independently, learning richer per-variable representations. \textbf{ConvFFN2} then
+mixes information across the variable dimension per feature, capturing the
+cross-variable (intermetric) dependencies that are critical for multivariate time
+series \citep{moderntcn2024}. Decoupling these two operations --- rather than handling
+them jointly --- reduces computational complexity and improves performance, as
+confirmed by the authors' ablation studies \citep{moderntcn2024}.
+
+\subsection{Anomaly Detection Approach}
+
+ModernTCN applies the same \textbf{reconstruction-based} strategy as TimesNet for
+anomaly detection. The model is trained to reconstruct normal input windows, and
+anomalies are flagged at inference time based on reconstruction error exceeding a
+threshold.
+
+\subsection{Relation to TimesNet}
+
+Since both ModernTCN and TimesNet are CNN-based task-general backbones evaluated on
+the same benchmarks, a brief comparison is useful. Both models successfully enlarge the
+effective receptive field beyond traditional TCNs, but they do so in different ways.
+TimesNet reshapes the 1D series into 2D tensors to exploit 2D convolutional kernels from
+computer vision, while ModernTCN stays in 1D and instead enlarges the kernel of the
+depthwise convolution directly. The authors of ModernTCN note that the 2D
+transformation in TimesNet disrupts the locality of the receptive field --- adjacent
+time points can end up separated after reshaping --- whereas ModernTCN maintains a
+contiguous, locally-focused receptive field that expands smoothly outward from each
+time point \citep{moderntcn2024}. In terms of efficiency, ModernTCN is reported to
+reduce training time by approximately 57\% compared to TimesNet on the anomaly
+detection benchmarks, while achieving comparable or better F1 scores
+\citep{moderntcn2024}.
+
+
+\section{TranAD}
+
+TranAD \citep{tranad2022} is a transformer-based anomaly detection model for
+multivariate time series.
+Unlike TimesNet and ModernTCN, which are task-general backbones adapted for anomaly
+detection among other tasks, TranAD is designed exclusively for anomaly detection
+and diagnosis. It targets three practical challenges that are particularly relevant
+to industrial and IoT settings: the absence of anomaly labels, high data volatility,
+and the need for fast inference \citep{tranad2022}.
+
+\subsection{Core Motivation}
+
+The starting point for TranAD is a limitation shared by most recurrent models used
+for anomaly detection: they process the input sequence one step at a time,
+which makes training slow and limits their ability to capture long-range temporal
+patterns. Transformers address both problems by processing the entire input window
+in parallel through self-attention, making training substantially faster and giving
+the model access to a much broader temporal context \citep{tranad2022}.
+
+However, a plain transformer encoder-decoder is not sufficient on its own. Simple
+reconstruction-based models tend to miss subtle anomalies --- those that deviate only
+slightly from normal behaviour --- because the reconstruction error for near-normal
+anomalies is too small to trigger detection. TranAD's central contribution is a
+training procedure that deliberately amplifies these reconstruction errors, making
+subtle anomalies easier to distinguish from normal data \citep{tranad2022}.
+
+\subsection{Architecture}
+
+TranAD's architecture, illustrated in Figure~\ref{fig:tranad_model}, consists of
+two transformer encoders and two decoders. The model takes two inputs simultaneously:
+the current input window $W$ and the complete sequence up to the current timestamp
+$C$. The complete sequence gives the model a broad temporal context beyond the local
+window, which is the key advantage over window-only models \citep{tranad2022}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{tranad_model.png}
+    \caption{The TranAD model architecture. The model operates in two phases. In
+    Phase~1, the input window $W$ and complete sequence $C$ are encoded and passed
+    to two decoders to produce initial reconstructions $O_1$ and $O_2$. In Phase~2,
+    the reconstruction error from $O_1$ is used as a focus score to re-condition
+    the encoder, producing a refined reconstruction $\hat{O}_2$. The anomaly score
+    is the average of the two reconstruction errors.
+    Figure reproduced from \citep{tranad2022}.}
+    \label{fig:tranad_model}
+\end{figure}
+
+Inference proceeds in two phases. In the first phase, the model encodes both inputs
+and produces two independent reconstructions of the input window. The deviation
+between the first reconstruction and the actual input --- called the \textbf{focus
+score} --- is then used to re-condition the encoder in the second phase. Specifically,
+the focus score is fed back as an additional input signal that directs the model's
+attention towards the parts of the sequence where the first reconstruction was least
+accurate. The second phase then produces a refined reconstruction. This
+\textbf{self-conditioning} mechanism serves two purposes: it amplifies reconstruction
+errors in anomalous regions, making them easier to detect, and it helps the model
+capture short-term temporal patterns that a single-pass reconstruction might miss
+\citep{tranad2022}.
+
+\subsection{Training}
+
+The two decoders are trained \textbf{adversarially}. The first decoder tries to
+reconstruct the input as accurately as possible --- in effect trying to produce a
+zero focus score --- while the second decoder tries to maximise the difference between
+its reconstruction and the input. This adversarial dynamic pushes the model to be
+sensitive to even small deviations from normal behaviour. To keep training stable,
+the loss function uses an \textbf{evolving weight} that starts by emphasising pure
+reconstruction and gradually shifts weight towards the adversarial objective as the
+reconstructions improve \citep{tranad2022}.
+
+Additionally, TranAD incorporates \textbf{model-agnostic meta-learning} (MAML)
+\citep{finn2017maml}, which performs an additional gradient update at the end of each
+epoch to help the model generalise quickly from limited training data. The authors
+report that this component is particularly important when only a fraction of the
+normal training data is available \citep{tranad2022}.
+
+\subsection{Anomaly Detection Approach}
+
+TranAD is a \textbf{reconstruction-based} model. At inference time, the anomaly
+score for each window is defined as the average of the reconstruction errors from
+the two phases. A timestamp is flagged as anomalous when this score exceeds a
+threshold determined automatically using Peaks-Over-Threshold (POT)
+\citep{siffer2017pot}. A timestamp is labelled anomalous if any of its $m$ dimensions
+exceeds the threshold, which also enables \textbf{anomaly diagnosis} --- identifying
+which specific sensor or variable is responsible for the anomaly.
+
+
+
+\section{Anomaly Transformer}
+
+Anomaly Transformer \citep{anomalytransformer2022} is a Transformer-based model for
+unsupervised time series anomaly detection. Like TranAD, it is designed exclusively
+for anomaly detection and leverages the self-attention mechanism of Transformers to
+capture temporal associations across the full input window. However, the two models
+differ fundamentally in their anomaly detection philosophy. Where TranAD amplifies
+reconstruction errors through adversarial training, Anomaly Transformer introduces an
+entirely different criterion: rather than measuring how poorly a time point is
+reconstructed, it measures how differently a time point associates with the rest of
+the series compared to what would be expected under normal conditions
+\citep{anomalytransformer2022}.
+
+\subsection{Association Discrepancy}
+
+The central insight of Anomaly Transformer is rooted in a structural property of
+anomalies: because anomalies are rare and dominated by surrounding normal data, it is
+extremely difficult for an anomalous time point to build meaningful associations with
+the entire series. Instead, its attention will tend to concentrate on its immediate
+temporal neighbours, which are more likely to share a similar abnormal pattern due to
+the continuity of the signal. Normal time points, by contrast, can discover informative
+associations with distant parts of the series, not just the adjacent area
+\citep{anomalytransformer2022}.
+
+This observation leads to the concept of \textbf{Association Discrepancy}: the
+difference between a time point's \textit{prior-association} --- a learnable Gaussian
+kernel that encodes an adjacent-concentration inductive bias --- and its
+\textit{series-association} --- the self-attention weights learned from the raw series.
+Because anomalies are forced to concentrate their attention locally while normal points
+spread it more broadly, anomalous time points will exhibit a smaller association
+discrepancy than normal ones. This makes the association discrepancy an inherently
+distinguishable criterion between normal and abnormal behaviour, without requiring
+any anomaly labels \citep{anomalytransformer2022}.
+
+
+\subsection{Architecture}
+
+The overall architecture of Anomaly Transformer, shown in
+Figure~\ref{fig:anomaly_transformer_arch}, stacks $L$ identical blocks, each
+consisting of an \textbf{Anomaly-Attention} mechanism followed by a feed-forward
+layer with residual connections and layer normalisation. The key departure from a
+vanilla Transformer is the Anomaly-Attention mechanism itself, which replaces the
+standard single-branch self-attention with a \textbf{two-branch structure}
+\citep{anomalytransformer2022}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{anomalytransformer.png}
+    \caption{Anomaly Transformer architecture. The Anomaly-Attention mechanism (left)
+    contains two branches: the prior-association (orange), computed via a learnable
+    Gaussian kernel applied to the learned scale $\sigma$, and the series-association
+    (blue), computed via standard scaled dot-product self-attention. The minimax
+    strategy drives the two branches apart via opposing gradient directions (red and
+    blue arrows), with a stop-gradient mechanism (grey) ensuring each phase only
+    updates its own branch. The reconstruction output is produced from the
+    series-association branch by multiplying with $V$. The overall model (right)
+    stacks $L$ such Anomaly-Attention blocks residually.
+    Figure reproduced from \citep{anomalytransformer2022}.}
+    \label{fig:anomaly_transformer_arch}
+\end{figure}
+
+As visible in Figure~\ref{fig:anomaly_transformer_arch}, the input $X$ is projected
+linearly into queries $Q$, keys $K$, values $V$, and a scale parameter $\sigma$. The
+two branches then operate in parallel on these projections.
+
+The \textbf{prior-association branch} (orange region) uses $\sigma$ to compute, for
+each time point $i$, a Gaussian kernel $G(|j - i|; \sigma_i)$ over all other time
+points $j$. This produces a distribution that is unimodal and centred on $i$,
+naturally concentrating weight on nearby time points. The learnable scale $\sigma_i$
+controls how broadly or narrowly the kernel spreads, allowing the model to adapt the
+prior to different temporal patterns. The resulting association weights are rescaled
+to form a proper discrete distribution \citep{anomalytransformer2022}.
+
+The \textbf{series-association branch} (blue region) is a standard scaled
+dot-product attention map: $Q$ and $K$ are multiplied, scaled, and passed through
+softmax to produce association weights over the full sequence. The reconstruction of
+the input is then obtained by multiplying these weights with $V$, following the
+standard Transformer formulation. Crucially, this branch learns its associations
+directly from the data, without any imposed locality constraint
+\citep{anomalytransformer2022}.
+
+The \textbf{association discrepancy} is computed as the symmetrised KL divergence
+between the prior-association and the series-association at each time point, averaged
+across all $L$ layers. The final anomaly score multiplies this discrepancy with the
+point-wise reconstruction error, so that both signals collaborate: a time point with
+a small association discrepancy is down-weighted in the reconstruction error term,
+making the combined score more robust than either criterion alone
+\citep{anomalytransformer2022}.
+
+
+
+\subsection{Anomaly Detection Approach}
+
+Anomaly Transformer is a \textbf{reconstruction-based} model augmented with an
+association-based criterion. During unsupervised training on normal data, the model
+learns to reconstruct input windows while simultaneously maximising the association
+discrepancy between normal and anomalous patterns. At
+inference time, each time point receives a scalar anomaly score combining its
+reconstruction error and its normalised association discrepancy. A time point is
+flagged as anomalous when this score exceeds a threshold, determined from the
+validation set by selecting the proportion of data to label as anomalous
+\citep{anomalytransformer2022}.
+
+\subsection{Relation to TranAD}
+
+Both Anomaly Transformer and TranAD are Transformer-based models designed exclusively
+for anomaly detection, trained without labels, and relying on reconstruction error as
+part of their anomaly criterion. Their key difference lies in how they go beyond
+simple reconstruction. TranAD introduces adversarial training to amplify reconstruction
+errors directly \citep{tranad2022}, while Anomaly Transformer introduces a
+complementary association-based criterion that captures a structurally different
+signal: not how much the reconstruction fails, but how the model's attention
+distributes across time. Furthermore, TranAD conditions its second decoding phase on
+the first-phase reconstruction error, whereas Anomaly Transformer has no such
+sequential phasing --- it processes the full window in a single forward pass per
+layer, producing the association discrepancy and reconstruction jointly
+\citep{anomalytransformer2022}.
+
+
+
+\section{GTA}
+
+GTA \citep{gta2022} is a multivariate time series anomaly detection framework
+designed explicitly for IoT settings. Unlike the models discussed so far ---
+TimesNet, ModernTCN, TranAD, and Anomaly Transformer --- which treat the
+input sensors as independent channels or as a flat multivariate vector, GTA
+starts from the observation that IoT sensors are not independent: they are
+embedded in a physical system with a real but unknown topological structure.
+Opening a valve in a water treatment plant changes pressure readings downstream;
+an attack on one sensor propagates through the network in a chain. The central
+argument of GTA is that explicitly modelling these inter-sensor dependencies
+--- rather than leaving them implicit in a flat attention map --- is essential
+for accurate anomaly detection in such settings \citep{gta2022}.
+
+\subsection{Graph Structure Learning}
+
+The challenge is that while the dependency structure between sensors is real,
+it is not known in advance. In most IoT deployments, the internal mechanisms
+linking sensors are hidden --- operators may know that sensors are related, but
+not precisely how, or in which direction influence flows. GTA therefore needs
+to \textit{discover} the graph structure from the data itself rather than
+assuming it \citep{gta2022}.
+
+GTA learns this structure \textbf{end-to-end} during training. Each sensor is
+modelled as a node in a directed graph, and for each ordered pair of sensors
+$(i, j)$, the model learns a probability that information should flow from
+sensor $i$ to sensor $j$. Because directly sampling a binary connection
+decision is non-differentiable and would block gradient flow, GTA uses a
+\textbf{Gumbel-Softmax Sampling} strategy: a continuous, differentiable
+relaxation of the discrete decision that allows the connection structure to be
+optimised jointly with the rest of the model through standard backpropagation
+\citep{gta2022}.
+
+Crucially, GTA does not simply connect every sensor to every other sensor. A
+fully connected graph would aggregate information from all neighbours
+indiscriminately, adding noise and obscuring the meaningful signal. Instead, a
+\textbf{sparsity regularisation} term penalises the total number of established
+connections, pushing the model to retain only the most informative links for
+each node \citep{gta2022}. The resulting graph is sparse, computationally
+efficient to use in the downstream convolution layers, and physically
+interpretable: in the authors' case study on a cyber-attack dataset, the
+discovered graph closely matched the known physical relationships between
+sensors, with malicious influence correctly traced from attacked upstream nodes
+to affected downstream ones \citep{gta2022}.
+
+\subsection{Architecture}
+
+The overall architecture of GTA, illustrated in Figure~\ref{fig:gta_arch},
+combines two main components that process the input in sequence: a
+\textbf{hierarchical context encoding block} and a \textbf{Transformer
+encoder-decoder} \citep{gta2022}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{gta.png}
+    \caption{The GTA architecture. The input multivariate time series is first
+    processed through a hierarchical context encoding block that interleaves
+    multi-scale dilated convolutions with Influence Propagation graph convolutions
+    to produce spatiotemporal embeddings. These are then fed into a
+    Transformer-based encoder-decoder for single-step forecasting.
+    Figure reproduced from \citep{gta2022}.}
+    \label{fig:gta_arch}
+\end{figure}
+
+\paragraph{Hierarchical context encoding.}
+The context encoding block is the spatial-temporal heart of GTA. It interleaves
+two operations in a hierarchical, multi-scale fashion: \textbf{dilated
+convolutions} \citep{yu2016dilated} for temporal modelling and \textbf{Influence
+Propagation (IP) graph convolution} for spatial modelling \citep{gta2022}.
+
+The dilated convolutions operate along the temporal dimension with increasing
+dilation rates across levels, allowing the model to capture temporal patterns
+at multiple scales --- short-range patterns at the first level, longer-range
+patterns at subsequent levels --- without a proportionally large number of
+parameters \citep{gta2022}. The outputs of each dilated convolution level are
+then passed through an IP graph convolution that propagates information across
+the learned sensor graph. The IP convolution is designed to model
+\textit{influence propagation}: rather than simply averaging neighbour
+representations, it computes the difference between each pair of connected
+sensors' time series embeddings, explicitly modelling how a change at one
+sensor flows to downstream neighbours \citep{gta2022}. This is physically
+motivated --- anomalies in IoT systems typically cascade through the network
+rather than appearing in isolation.
+
+\paragraph{Transformer-based forecasting.}
+The spatiotemporal representations produced by the context encoding block are
+fed into a Transformer encoder-decoder that performs single-step forecasting:
+predicting the next timestamp's sensor values from the encoded historical
+context \citep{gta2022}. The Transformer here plays the same role as in TranAD
+and Anomaly Transformer --- processing the full sequence in parallel and
+capturing long-range temporal dependencies through self-attention --- but is
+used for prediction rather than reconstruction.
+
+One practical modification is made to the standard multi-head self-attention
+mechanism to reduce its quadratic cost. GTA introduces a \textbf{multi-branch
+attention} mechanism: the input embedding is split along the channel dimension
+into two branches, each handled by a different type of attention. One branch
+uses standard pairwise attention for capturing local temporal patterns, while
+the other uses a fixed globally-learned matrix that does not depend on the
+input and therefore requires no query-key dot products \citep{gta2022}. The
+two branches are then concatenated to form the final attention output. This
+reduces the overall computational cost while retaining the model's ability to
+capture both local and global temporal patterns --- a deliberate design choice
+motivated by the efficiency requirements of IoT deployments \citep{gta2022}.
+
+\subsection{Anomaly Detection Approach}
+
+GTA is a \textbf{forecasting-based} model, which sets it apart from all other
+models in this thesis --- TimesNet, ModernTCN, TranAD, and Anomaly Transformer
+are all reconstruction-based. Rather than reconstructing the current input window
+and measuring reconstruction error, GTA learns to predict the next timestamp's
+sensor values from historical context. At inference time, the anomaly score for
+each timestamp is the mean squared error between the model's prediction and the
+actual observed values across all sensors \citep{gta2022}. A timestamp is flagged
+as anomalous when this score exceeds a threshold. Because the model is trained
+exclusively on normal data, it learns to predict normal sensor behaviour
+accurately; anomalies produce large prediction errors because they deviate from
+the patterns the model has learned.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Experiments}
+\section{Evaluation Metrics}
+\subsection{Accuracy}
+\subsection{Number of operations}
+\subsection{Memory Usage (MB)}
+\subsection{Inference Speed}
+\section{Datasets}
+\section{Results}
+\section{Conclusion Results}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Conclusion}
+\label{ch:conclusion}
+future work
+
+\todo{conclude on the problem statement from the introduction}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\cleardoublepage
+\addcontentsline{toc}{chapter}{Bibliography}
+\bibliographystyle{plain} 
+\bibliography{refs}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\cleardoublepage
+\appendix
+\chapter{The Technical Details}
+
+\todo{\dots}
+
+\end{document}
+

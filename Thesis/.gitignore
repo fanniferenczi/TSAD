@@ -1,0 +1,77 @@
+# LaTeX build artifacts (latexmk / pdflatex / xelatex / lualatex)
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex.gz(busy)
+*.nav
+*.snm
+*.vrb
+*.dvi
+*.xdv
+*.ps
+
+# Bibliography (BibTeX / Biber)
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+
+# Index / glossaries / nomenclature
+*.idx
+*.ilg
+*.ind
+*.ist
+*.glo
+*.gls
+*.glg
+*.acn
+*.acr
+*.alg
+*.nlo
+*.nls
+*.xdy
+
+# Hyperref / cleveref / misc
+*.brf
+*.thm
+*.fot
+*.cb
+*.cb2
+
+# minted / pygments
+_minted*
+*.pyg
+
+# Latexmk output directory (if used)
+out/
+build/
+
+# Generated PDFs (comment out if you want to version the compiled thesis PDF)
+*.pdf
+
+# Editor/OS temp files
+*~
+*.swp
+*.swo
+*.tmp
+*.bak
+.DS_Store
+
+# latexindent
+*.bak0
+*.bak1
+*.bak2
+*.bak3
+*.bak4
+*.bak5
+*.bak6
+*.bak7
+*.bak8
+*.bak9
+*.indent.log
