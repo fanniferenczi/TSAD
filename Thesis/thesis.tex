@@ -1,6 +1,6 @@
 \documentclass[twoside,11pt,openright]{report}
 
-\usepackage[latin1]{inputenc}
+\usepackage[utf8]{inputenc}
 \usepackage[american]{babel}
 \usepackage{a4}
 \usepackage{latexsym}
@@ -19,6 +19,9 @@
 \usepackage{natbib}
 \usepackage{graphicx}
 \usepackage{caption}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{booktabs}
 
 \renewcommand*\sfdefault{lmss}
 \renewcommand*\ttdefault{txtt}
@@ -833,12 +836,289 @@ the patterns the model has learned.
 \chapter{Experiments}
 \section{Evaluation Metrics}
 \subsection{Accuracy}
+
+Anomaly detection is fundamentally a binary classification problem: each time step is assigned
+either a normal or an anomalous label. Evaluating this classification accurately is non-trivial
+in the TSAD setting, where anomalies are rare by definition and the class distribution is
+heavily imbalanced \cite{darban2024survey}. Four point-wise metrics are used throughout
+this thesis to assess detection performance: Precision, Recall, F1 Score, and the Area Under
+the Receiver Operating Characteristic Curve (AUC-ROC). These metrics are defined in terms
+of the standard confusion matrix quantities: True Positives (\(\mathrm{TP}\)), False Positives
+(\(\mathrm{FP}\)), True Negatives (\(\mathrm{TN}\)), and False Negatives (\(\mathrm{FN}\)).
+
+\paragraph{Precision.}
+Precision measures the proportion of time steps flagged as anomalous by the model that are
+truly anomalous \cite{darban2024survey}. A low precision indicates that the model
+generates many false alarms, incorrectly labelling normal behaviour as anomalous.
+
+\begin{equation}
+    \mathrm{Precision} = \frac{\mathrm{TP}}{\mathrm{TP} + \mathrm{FP}}
+\end{equation}
+
+\paragraph{Recall.}
+Recall measures the proportion of actual anomalous time steps that the model successfully
+detects \cite{darban2024survey}. A low recall indicates that many true anomalies are
+missed.
+
+\begin{equation}
+    \mathrm{Recall} = \frac{\mathrm{TP}}{\mathrm{TP} + \mathrm{FN}}
+\end{equation}
+
+\paragraph{F1 Score.}
+Precision and Recall are in tension: a model can trivially achieve perfect recall by flagging
+every time step as anomalous, or perfect precision by only flagging the single most certain
+anomaly. The F1 Score is the harmonic mean of the two, providing a single balanced measure
+of detection quality \cite{darban2024survey}.
+
+\begin{equation}
+    \mathrm{F1} = 2 \cdot \frac{\mathrm{Precision} \cdot \mathrm{Recall}}{\mathrm{Precision} + \mathrm{Recall}}
+\end{equation}
+
+\noindent A high F1 score requires the model to detect anomalies reliably while keeping false
+alarms low. All F1 scores reported in this thesis are computed using \emph{point-wise}
+evaluation without point adjustment (PA), unless explicitly stated otherwise. The PA
+protocol, which credits an entire anomaly segment if any single point within it is detected,
+is known to substantially inflate reported scores and is not used as the primary metric here
+\cite{darban2024survey, darban2024carla}.
+
+\paragraph{AUC-ROC.}
+The metrics above depend on a fixed anomaly threshold. In practice, anomaly scores are
+continuous, and the choice of threshold is dataset- and application-specific. The Area Under
+the Receiver Operating Characteristic Curve (AUC-ROC) provides a threshold-independent
+summary of model performance \cite{darban2024survey}. The ROC curve
+plots the True Positive Rate (Recall) against the False Positive Rate
+(\(\mathrm{FPR} = \mathrm{FP}/(\mathrm{FP}+\mathrm{TN})\)) across all possible thresholds,
+and AUC-ROC summarises this curve as a single scalar:
+
+\begin{equation}
+    \mathrm{AUC\text{-}ROC} = \int_{0}^{1} \mathrm{Recall}(t)\, \frac{d(\mathrm{FPR}(t))}{dt}\, dt
+\end{equation}
+
+\noindent A higher AU-ROC indicates better model performance. AUC-ROC is particularly useful for cross-model comparison because it captures
+discriminative ability independently of any particular operating threshold
+\cite{darban2024survey}.
+
+
+
 \subsection{Number of operations}
-\subsection{Memory Usage (MB)}
+
+Measuring the computational cost of a model is essential for evaluating its suitability
+for deployment on resource-constrained IoT edge devices. Unlike wall-clock latency,
+which is sensitive to hardware, software stack, and execution environment, the number
+of arithmetic operations performed during a forward pass provides a hardware-independent
+characterisation of computational complexity that can be compared across models and
+platforms.
+
+\paragraph{Multiply-Accumulate Operations (MACs).}
+The standard unit used to quantify the computational cost of deep learning inference
+is the \emph{Multiply-Accumulate operation} (MAC). A single MAC corresponds to one
+multiplication followed by one addition, the elementary operation in dot products,
+convolutions, and matrix multiplications that constitute the bulk of deep neural
+network computation. Because one MAC equals two floating-point operations (FLOPs),
+the two units are often used interchangeably in the literature, with the relationship
+$\mathrm{FLOPs} \approx 2 \times \mathrm{MACs}$.
+
+For edge deployment, the MAC count of a model's forward pass is a primary indicator
+of whether it can meet real-time latency budgets on hardware with limited floating-point
+throughput, such as microcontrollers or low-power embedded processors. A lower MAC
+count generally implies lower energy consumption, lower heat dissipation, and the
+possibility of deployment on cheaper or more constrained hardware.
+
+\paragraph{Measurement with \texttt{fvcore}.}
+All MAC counts reported in this thesis are measured using \texttt{fvcore} \cite{fvcore}, an open-source
+library developed by Meta Research that provides a \texttt{FlopCountAnalysis} utility for
+PyTorch models. \texttt{fvcore} works by tracing the model's computational graph on a
+given input tensor and registering a hook for each operator encountered. For each
+registered operator — such as \texttt{nn.Linear} or \texttt{nn.Conv1d} — a handler function computes the theoretical MAC count from the
+operator's input and output shapes. The total MAC count is then the sum of all
+per-operator counts accumulated over a single forward pass.
+
+\paragraph{Coverage gaps and custom handlers.}
+\texttt{fvcore} provides built-in handlers for the most common PyTorch operators,
+particularly those dominated by matrix multiplication, such as linear projections and
+convolutions. However, it does not cover all operations present in every architecture.
+Specifically, element-wise operations such as softmax, layer normalisation, residual
+additions, and activation functions are not counted by default, as \texttt{fvcore}
+registers them as unsupported and silently omits their contribution.
+
+For convolution-based models such as TimesNet \cite{timesnet2023} and ModernTCN
+\cite{moderntcn2024}, the built-in handlers provided sufficient coverage, since the
+dominant cost lies in convolutional and linear layers that \texttt{fvcore} handles
+natively. For the Transformer-based models evaluated in this thesis --- TranAD
+\cite{tranad2022}, Anomaly Transformer \cite{anomalytransformer2022}, and GTA
+\cite{gta2023} --- the standard handlers were insufficient. \texttt{fvcore} only
+registers handlers for a subset of PyTorch operators, and silently omits any operation
+for which no handler is defined. For these architectures, a range of operations went
+uncounted by default, including element-wise arithmetic (e.g.\ \texttt{aten::mul}), 
+activation functions (e.g.\ \texttt{aten::softmax}), and other operations such as
+\texttt{aten::pow}. Custom operator handlers were therefore
+implemented and registered with \texttt{fvcore}'s analysis object to cover these
+missing operations. The reported MAC counts should consequently be
+interpreted as lower bounds on the true per-forward-pass cost, suitable for relative
+cross-model comparison rather than absolute throughput estimation.
+
+\subsection{Memory Usage}
+
+Memory footprint is a critical constraint for IoT edge deployment, where devices
+operate under strict memory budgets. Five memory-related metrics are reported for each model in this thesis,
+each capturing a different aspect of the model's memory demand.
+
+\paragraph{Parameter count.}
+The parameter count is the total number of individually learnable scalar values in
+the model --- all weights and biases across every layer. This number determines the
+minimum information that must be stored to represent a trained model, and is a
+hardware-independent measure of model size. A model with fewer parameters is
+generally cheaper to store and transfer, and is more likely to fit within the flash
+or RAM constraints of an edge device.
+
+\paragraph{Weight memory (exact).}
+The weight memory is the parameter count multiplied by the number of bytes per
+value. All models in this thesis are evaluated in 32-bit floating-point precision,
+so this quantity equals $\mathrm{Params} \times 4\ \mathrm{bytes}$. This represents
+the minimum memory required to hold the trained model in memory and is the most
+direct measure of the storage cost of deploying a model.
+
+\paragraph{Weight memory (GPU allocated).}
+The GPU-allocated weight memory is the amount of memory the runtime actually
+reserves for the model's parameters, as reported by PyTorch's memory allocator. This
+value can exceed the exact weight memory because PyTorch allocates memory in blocks
+and may also include persistent buffers that are part of the model's state but are not updated by
+gradient descent.
+
+\paragraph{Peak training memory.}
+The peak training memory is the maximum GPU memory occupied at any point during a
+training forward-backward pass. It is substantially larger than the inference memory
+because during backpropagation PyTorch must retain all intermediate activations
+produced during the forward pass in order to compute gradients.
+
+\paragraph{Peak inference memory.}
+The peak inference memory is the maximum GPU memory occupied during a forward pass
+on the test set, with no gradient computation. This is the relevant memory figure
+for deployment, since in production the model only performs forward passes on new
+incoming data. 
+
+\paragraph{Memory overhead.}
+The memory overhead is defined as the difference between the peak training memory
+and the exact weight memory:
+\begin{equation}
+    \mathrm{Overhead} = \mathrm{Peak\ training\ memory} - \mathrm{Weight\ memory\ (exact)}
+\end{equation}
+It quantifies everything that is not the model weights themselves: temporary tensors,
+intermediate activations, gradient buffers, and other bookkeeping structures that
+PyTorch allocates during a training step. A large overhead relative to the weight
+memory indicates that the model's training cost is dominated by the computation graph
+rather than by the number of parameters.
+
+
 \subsection{Inference Speed}
+
+Beyond memory and computational cost, the time a model takes to process incoming
+data is a critical constraint for edge deployment. Two complementary metrics are used to
+characterise inference speed in this thesis.
+
+\paragraph{Latency.}
+Latency is defined here as the mean wall-clock time required to process one batch
+of input windows, measured in milliseconds. Latency captures the end-to-end delay from
+receiving an input to producing an anomaly score, and is therefore the most
+directly relevant metric for assessing whether a model can operate within the
+response time budget of a target application. A model with high latency may
+produce accurate results but still be unsuitable for deployment in scenarios where
+anomalies must be flagged within a tight time window.
+
+\paragraph{Throughput.}
+Throughput is defined as the number of individual samples processed per second.
+It is the inverse perspective of latency: where latency characterises the delay
+for a single batch, throughput characterises how much data the model can handle
+over time. Throughput is particularly relevant when evaluating a model's ability
+to keep pace with the data rate of a sensor stream without accumulating a
+backlog. 
+
+\paragraph{Relationship between the two metrics.}
+Latency and throughput are related but capture different deployment concerns.
+A model with low latency on a small batch may still achieve high throughput if
+batches can be processed in rapid succession. Conversely, a model optimised
+for high throughput through large batch sizes may incur higher per-batch
+latency. Both metrics are reported here to give a complete picture of each
+model's runtime behaviour, since edge deployments vary in whether they
+prioritise low response time or high data volume handling.
+
 \section{Datasets}
-\section{Results}
-\section{Conclusion Results}
+
+\paragraph{Server Machine Dataset (SMD)}
+
+The Server Machine Dataset (SMD) \cite{su2019smd} is a real-world multivariate time series dataset
+collected from a large Internet company. It contains five weeks of resource utilisation traces
+from 28 server machines, covering 38 dimensions per machine.
+The anomaly rate refers to the proportion of time steps in the dataset that are labelled as
+anomalous. For SMD, this is approximately 4.2\%, meaning
+that the vast majority of observations reflect normal server behaviour, with anomalous events
+being relatively rare. 
+
+\paragraph{Mars Science Laboratory (MSL)}
+
+The Mars Science Laboratory (MSL) \cite{hundman2018smap} dataset is a publicly available NASA dataset
+containing telemetry anomaly data derived from the Incident
+Surprise Anomaly (ISA) reports of spacecraft monitoring systems.
+It records sensor and actuator data from the Mars rover itself, covering 55 dimensions. 
+The anomaly rate is approximately 10.48\%, meaning that a substantially larger
+proportion of time steps are labelled anomalous compared to SMD. MSL is one of the
+most widely used benchmarks in the TSAD literature and
+is commonly evaluated alongside SMAP dataset, both originating from the
+same NASA spacecraft monitoring programme.
+
+\paragraph{Soil Moisture Active Passive (SMAP)}
+
+The Soil Moisture Active Passive (SMAP) dataset \cite{hundman2018smap}
+is a publicly available NASA dataset, released alongside MSL and originating from the same
+spacecraft monitoring programme. It contains telemetry anomaly data derived from the
+Incident Surprise Anomaly (ISA) reports of the SMAP satellite, covering measurements
+such as radiation, temperature, and power, across 25 dimensions. 
+The anomaly rate is approximately 12.83\%. 
+
+\paragraph{Secure Water Treatment (SWaT)}
+
+The Secure Water Treatment (SWaT) dataset \cite{mathur2016swat} is collected from a
+real-world water treatment testbed operated for cyber-attack investigation. The data
+collection process lasted 11 days, with the system operated continuously such that
+all values from all 51 sensors and actuators were recorded. The first
+7 days of operation were conducted under normal conditions, while the remaining 4
+days involved 41 distinct attacks derived from a model of the intent space of a
+cyber-physical system. The dataset covers sensor
+measurements such as water level and flow rate, as well as actuator operations such
+as valves and pumps. The anomaly rate is approximately 12.14\%. 
+Unlike the NASA spacecraft datasets, SWaT exhibits strong
+topological dependencies between sensors, as any change in one sensor can propagate
+through the network to other sensors \cite{gta2022}.
+
+\paragraph{Pooled Server Metrics (PSM)}
+
+The Pooled Server Metrics (PSM) dataset \cite{abdulaal2021psm} is a real-world
+multivariate time series dataset collected internally from multiple application
+server nodes at eBay. It covers 25 dimensions of
+server performance metrics. The anomaly rate is
+approximately 27.76\%, meaning that more than a quarter
+of the test set time steps are labelled anomalous.
+
+\begin{table}[ht]
+\centering
+\caption{Dataset Statistics}
+\begin{tabular}{llrrrrrr}
+\toprule
+\textbf{Dataset} & \textbf{Domain} & \textbf{Entities} & \textbf{Dim.} 
+    & \textbf{Train} & \textbf{Test} & \textbf{Anom. Rate (\%)} \\
+\midrule
+SMD  & Server machines  & 28 & 38 & 566,724 & 708,420 & 4.20 \\
+MSL  & Spacecraft       & 27 & 55 &  44,653 &  73,729 & 10.48 \\
+SMAP & Spacecraft       & 55 & 25 & 108,146 & 427,617 & 12.83 \\
+SWaT & Water treatment  &  1 & 51 & 396,000 & 449,919 & 12.14 \\
+PSM  & Server machines  &  1 & 25 & 105,984 &  87,841 & 27.76 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Results (TODO)}
+
+\section{Results Conclusion (TODO)}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
