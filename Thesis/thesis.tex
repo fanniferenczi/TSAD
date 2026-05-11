@@ -1118,16 +1118,64 @@ PSM  & Server machines  &  1 & 25 & 105,984 &  87,841 & 27.76 \\
 
 \section{Results (TODO)}
 
-\section{Results Conclusion (TODO)}
+\subsection{f1 score and AUC-ROC}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{f1_boxplot_by_model.png}
+    \caption{todo}
+    \label{fig:f1_boxplot_by_model}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{auc_boxplot_by_model.png}
+    \caption{todo}
+    \label{fig:auc_boxplot_by_model}
+\end{figure}
+
+\subsection{Memory usage}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{radar_memory.png}
+    \caption{todo}
+    \label{fig:radar_memory}
+\end{figure}
+
+\subsection{Inference Time}
+Why TimesNet latency is much higer that ModernTCN when both rily on convolutional architecture? 
+
+Meanwhile, both methods are inspired by CV and intend to make the time series
+analysis take advantage of the development of CV community. But the two methods take different
+paths to accomplish this goal. TimesNet makes efforts to transform the 1D time series into 2D space,
+making the time series can be modeled by the 2D ConvNets in CV community. But the additional data
+transformation and aggregation modules also bring extra memory usage and slower training speed.
+
+\subsection{Visualising reconstructions}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{TimesNet_SMD_worst_segment_channels.png}
+    \caption{TimesNet SMD missed anomaly}
+    \label{fig:TimesNet_SMD_worst_segment_channels}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{ModernTCN_SMD_worst_segment_channels.png}
+    \caption{ModernTCN SMD missed anomaly}
+    \label{fig:ModernTCN_SMD_worst_segment_channels}
+\end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \chapter{Conclusion}
 \label{ch:conclusion}
-future work
 
 \todo{conclude on the problem statement from the introduction}
+
+\subsection{Future work}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
