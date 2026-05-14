@@ -874,29 +874,42 @@ of detection quality \cite{darban2024survey}.
     \mathrm{F1} = 2 \cdot \frac{\mathrm{Precision} \cdot \mathrm{Recall}}{\mathrm{Precision} + \mathrm{Recall}}
 \end{equation}
 
-\noindent A high F1 score requires the model to detect anomalies reliably while keeping false
-alarms low. All F1 scores reported in this thesis are computed using \emph{point-wise}
-evaluation without point adjustment (PA), unless explicitly stated otherwise. The PA
-protocol, which credits an entire anomaly segment if any single point within it is detected,
-is known to substantially inflate reported scores and is not used as the primary metric here
-\cite{darban2024survey, darban2024carla}.
+\noindent In this thesis, F1 scores are computed using the \emph{point adjustment} (PA)
+protocol \cite{xu2018donut}. Under this convention, if at least one point within a contiguous
+anomalous segment is detected by the model, all points in that segment are considered
+correctly detected. This corresponds to an \emph{abnormal event detection} perspective: once
+any part of an anomalous event is flagged, the entire event is considered found, which is
+meaningful in real-world monitoring scenarios where a single alert would trigger a human
+inspection of the surrounding time window \cite{xu2022detectionadjustment}.
 
-\paragraph{AUC-ROC.}
+Point adjustment is a widely adopted convention in the TSAD literature, and all baseline
+results compared in this thesis are also evaluated under the same protocol
+\cite{xu2022detectionadjustment}. This ensures a fair comparison across
+models. It should nevertheless be noted that point adjustment can overestimate model
+performance, particularly on datasets with long anomalous segments, since detecting even
+a single point in a long segment credits the model with detecting the entire segment
+\cite{darban2024carla}. The AU-PR metric described below is reported without point
+adjustment and therefore provides a complementary, stricter perspective on model
+performance.
+
+\paragraph{Area Under the Precision-Recall Curve (AU-PR).}
 The metrics above depend on a fixed anomaly threshold. In practice, anomaly scores are
 continuous, and the choice of threshold is dataset- and application-specific. The Area Under
-the Receiver Operating Characteristic Curve (AUC-ROC) provides a threshold-independent
-summary of model performance \cite{darban2024survey}. The ROC curve
-plots the True Positive Rate (Recall) against the False Positive Rate
-(\(\mathrm{FPR} = \mathrm{FP}/(\mathrm{FP}+\mathrm{TN})\)) across all possible thresholds,
-and AUC-ROC summarises this curve as a single scalar:
-
+the Precision-Recall Curve (AU-PR) provides a threshold-independent summary of model
+performance \cite{darban2024survey}:
 \begin{equation}
-    \mathrm{AUC\text{-}ROC} = \int_{0}^{1} \mathrm{Recall}(t)\, \frac{d(\mathrm{FPR}(t))}{dt}\, dt
+    \mathrm{AU\text{-}PR} = \int_{0}^{1} \mathrm{Precision}(t)\,
+    \frac{d(\mathrm{Recall}(t))}{dt}\, dt
 \end{equation}
 
-\noindent A higher AU-ROC indicates better model performance. AUC-ROC is particularly useful for cross-model comparison because it captures
-discriminative ability independently of any particular operating threshold
-\cite{darban2024survey}.
+\noindent AU-PR is particularly suited to heavily imbalanced datasets, where anomalies
+constitute only a small fraction of all observations \cite{darban2024survey}. Unlike
+AUC-ROC, which weights true positive and false positive rates symmetrically regardless of
+class frequency, AU-PR focuses directly on the model's ability to retrieve the rare anomalous
+class with high precision. Because it is computed from raw anomaly scores without applying
+point adjustment, it also serves as a more conservative measure of performance than the
+point-adjusted F1 score, and is therefore useful for cross-model comparison that is not
+subject to the inflation effects of the PA protocol.
 
 
 
