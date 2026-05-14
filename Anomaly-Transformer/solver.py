@@ -363,15 +363,16 @@ class Solver(object):
         print("pred: ", pred.shape)
         print("gt:   ", gt.shape)
 
-        from sklearn.metrics import precision_recall_fscore_support
+        from sklearn.metrics import precision_recall_fscore_support, average_precision_score
         from sklearn.metrics import accuracy_score, roc_auc_score
         accuracy = accuracy_score(gt, pred)
         precision, recall, f_score, support = precision_recall_fscore_support(gt, pred,
                                                                               average='binary')
         auc = roc_auc_score(test_labels, test_energy)
+        aupr = average_precision_score(test_labels, test_energy)    
         print(
-            "Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}".format(
+            "Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}, AU-PR : {:0.4f}".format(
                 accuracy, precision,
-                recall, f_score, auc))
+                recall, f_score, auc, aupr))
 
-        return accuracy, precision, recall, f_score, auc
+        return accuracy, precision, recall, f_score, auc, aupr

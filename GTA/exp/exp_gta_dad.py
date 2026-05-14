@@ -9,7 +9,7 @@ from models.gta import GTA
 
 from utils.tools import EarlyStopping, adjust_learning_rate
 from utils.metrics import metric
-from sklearn.metrics import classification_report
+from sklearn.metrics import average_precision_score, classification_report
 
 import numpy as np
 
@@ -319,16 +319,16 @@ class Exp_GTA_DAD(Exp_Basic):
             auc_raw = 0.0
             print('Warning: AUC (raw) could not be computed (only one class in labels)')
 
-        # Step 5: compute AUC-ROC using point-adjusted binary predictions at best threshold
         try:
-            best_adjusted_preds = point_adjust(anomaly_scores, anomaly_labels, best_thresh)
-            auc_adjusted = roc_auc_score(anomaly_labels, best_adjusted_preds)
+            aupr = average_precision_score(anomaly_labels, anomaly_scores)
         except ValueError:
-            auc_adjusted = 0.0
-            print('Warning: AUC (adjusted) could not be computed (only one class in labels)')
+            aupr = 0.0
+            print('Warning: aupr could not be computed ')
+
+       
 
         print(f'AUC-ROC (raw scores):     {auc_raw:.4f}')
-        print(f'AUC-ROC (point-adjusted): {auc_adjusted:.4f}')
+        print(f'AU PR: {aupr:.4f}')
         print(f'Best threshold: {best_thresh:.6f}')
         print(f'Precision: {best_prec:.4f}')
         print(f'Recall:    {best_rec:.4f}')
@@ -336,7 +336,7 @@ class Exp_GTA_DAD(Exp_Basic):
 
         # save results
         np.save(folder_path+'anomaly_scores.npy', anomaly_scores)
-        results_dict = {'precision': best_prec, 'recall': best_rec, 'f1': best_f1, 'threshold': best_thresh, 'auc_raw': auc_raw, 'auc_adjusted': auc_adjusted}
+        results_dict = {'precision': best_prec, 'recall': best_rec, 'f1': best_f1, 'threshold': best_thresh, 'auc_raw': auc_raw, 'aupr': aupr}
         print('Anomaly detection results:', results_dict)
 
         return

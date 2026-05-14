@@ -1,7 +1,7 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from utils.tools import EarlyStopping, adjust_learning_rate, adjustment
-from sklearn.metrics import precision_recall_fscore_support, roc_auc_score
+from sklearn.metrics import average_precision_score, precision_recall_fscore_support, roc_auc_score
 from sklearn.metrics import accuracy_score
 import torch.multiprocessing
 
@@ -237,13 +237,20 @@ class Exp_Anomaly_Detection(Exp_Basic):
             # catches edge case where all labels are the same class
             auc = float('nan')
 
-        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}".format(
-            accuracy, precision, recall, f_score, auc))
+        # (6) AU-PR using raw scores BEFORE point adjustment
+        # Particularly useful for imbalanced datasets like GECCO
+        try:
+            aupr = average_precision_score(test_labels, test_energy)
+        except ValueError:
+            aupr = float('nan')
+
+        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}, AU-PR : {:0.4f}".format(
+            accuracy, precision, recall, f_score, auc, aupr))
 
         f = open("result_anomaly_detection.txt", 'a')
         f.write(setting + "  \n")
-        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}".format(
-            accuracy, precision, recall, f_score, auc))
+        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}, AU-PR : {:0.4f}".format(
+            accuracy, precision, recall, f_score, auc, aupr))
         f.write('\n')
         f.write('\n')
         f.close()

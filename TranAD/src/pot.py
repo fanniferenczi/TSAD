@@ -28,8 +28,13 @@ def calc_point2point(predict, actual, raw_score=None):
         roc_auc_proper = roc_auc_score(actual, raw_score) if raw_score is not None else None
     except:
         roc_auc_proper = 0
+
+    try:
+        aupr = average_precision_score(actual, raw_score) if raw_score is not None else None
+    except ValueError:
+        aupr = float('nan')
     
-    return f1, precision, recall, TP, TN, FP, FN, roc_auc, roc_auc_proper
+    return f1, precision, recall, TP, TN, FP, FN, roc_auc, roc_auc_proper, aupr
 
 
 # the below function is taken from OmniAnomaly code base directly
@@ -167,6 +172,7 @@ def pot_eval(init_score, score, label, q=1e-5, level=0.02):
         'FN': p_t[6],
         'ROC/AUC': p_t[7],
         'ROC/AUC_correct': p_t[8],   # proper threshold-free AUC
+        'AU-PR': p_t[9],
         'threshold': pot_th,
         # 'pot-latency': p_latency
     }, np.array(pred)

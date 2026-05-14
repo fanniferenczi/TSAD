@@ -1,7 +1,7 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from utils.tools import EarlyStopping, adjust_learning_rate, adjustment
-from sklearn.metrics import precision_recall_fscore_support, roc_auc_score
+from sklearn.metrics import average_precision_score, precision_recall_fscore_support, roc_auc_score
 from sklearn.metrics import accuracy_score
 import torch.multiprocessing
 
@@ -210,50 +210,46 @@ class Exp_Anomaly_Detection(Exp_Basic):
         print(f"Saved test_input/output ({est_mb:.1f} MB each, float16, sub={sub})")
         # step_size.npy is always seq_len — arrays are stored in raw time space
         np.save(os.path.join(folder_path, 'step_size.npy'), np.array([seq_len]))
-
-        # (3b) AUC — must be computed BEFORE point-adjust
+        
+        # (4a) AUC — must be computed BEFORE point-adjust
         # test_energy is the raw continuous reconstruction score (higher = more anomalous)
         # gt is the raw ground truth labels (no adjustment applied yet)
-        # Point-adjust inflates F1 but AUC uses the continuous score directly,
-        # so it must be computed on the unadjusted labels to be meaningful
-        try:
-            auc = roc_auc_score(gt, test_energy)
-        except ValueError:
-            # roc_auc_score raises if only one class present in gt
-            auc = float('nan')
-            print("AUC: undefined (only one class in ground truth)")
 
         try:
-            auc = roc_auc_score(gt, test_energy)  # correct: continuous scores
+            auc = roc_auc_score(gt, test_energy)  
         except ValueError:
             auc = float('nan')
             print("AUC: undefined (only one class in ground truth)")
 
+        # (4b) AU-PR — must be computed BEFORE point-adjust
+        # test_energy is the raw continuous reconstruction score (higher = more anomalous)
+        # gt is the raw ground truth labels (no adjustment applied yet)
+        # AU-PR is particularly useful for imbalanced datasets (Darban et al., 2024, Table 4)
         try:
-            auc_binary = roc_auc_score(gt, pred)  # degenerate: binary predictions
+            aupr = average_precision_score(gt, test_energy)
         except ValueError:
-            auc_binary = float('nan')
-            print("AUC binary: undefined (only one class in ground truth)")
-        
+            aupr = float('nan')
+            print("AU-PR: undefined (only one class in ground truth)")
 
-        # (4) detection adjustment
+        # (5) detection adjustment
         gt, pred = adjustment(gt, pred)
 
         pred = np.array(pred)
-        gt = np.array(gt)
+        gt   = np.array(gt)
         np.save(os.path.join(folder_path, 'predictions_adjusted.npy'), pred)
         print("pred: ", pred.shape)
         print("gt:   ", gt.shape)
 
-        accuracy = accuracy_score(gt, pred)
+        accuracy  = accuracy_score(gt, pred)
         precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
-        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}, AUC_binary : {:0.4f}".format(
-            accuracy, precision, recall, f_score, auc, auc_binary))
+
+        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AU-PR : {:0.4f}, AU-ROC : {:0.4f}".format(
+            accuracy, precision, recall, f_score, aupr, auc))
 
         f = open("result_anomaly_detection.txt", 'a')
         f.write(setting + "  \n")
-        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AUC : {:0.4f}, AUC_binary : {:0.4f}".format(
-            accuracy, precision, recall, f_score, auc, auc_binary))
+        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}, AU-PR : {:0.4f}, AU-ROC : {:0.4f}".format(
+            accuracy, precision, recall, f_score, aupr, auc))
         f.write('\n')
         f.write('\n')
         f.close()
