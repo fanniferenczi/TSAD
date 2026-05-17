@@ -22,6 +22,7 @@
 \usepackage{url}
 \usepackage{hyperref}
 \usepackage{booktabs}
+\usepackage{multirow}
 
 \renewcommand*\sfdefault{lmss}
 \renewcommand*\ttdefault{txtt}
@@ -1117,46 +1118,217 @@ of the test set time steps are labelled anomalous.
 \caption{Dataset Statistics}
 \begin{tabular}{llrrrrrr}
 \toprule
-\textbf{Dataset} & \textbf{Domain} & \textbf{Entities} & \textbf{Dim.} 
+\textbf{Dataset} & \textbf{Domain} & \textbf{Dim.} 
     & \textbf{Train} & \textbf{Test} & \textbf{Anom. Rate (\%)} \\
 \midrule
-SMD  & Server machines  & 28 & 38 & 566,724 & 708,420 & 4.20 \\
-MSL  & Spacecraft       & 27 & 55 &  44,653 &  73,729 & 10.48 \\
-SMAP & Spacecraft       & 55 & 25 & 108,146 & 427,617 & 12.83 \\
-SWaT & Water treatment  &  1 & 51 & 396,000 & 449,919 & 12.14 \\
-PSM  & Server machines  &  1 & 25 & 105,984 &  87,841 & 27.76 \\
+SMD  & Server machines  & 38 & 566,724 & 708,420 & 4.20 \\
+MSL  & Spacecraft       & 55 &  44,653 &  73,729 & 10.48 \\
+SMAP & Spacecraft       & 25 & 108,146 & 427,617 & 12.83 \\
+SWaT & Water treatment  & 51 & 396,000 & 449,919 & 12.14 \\
+PSM  & Server machines  & 25 & 105,984 &  87,841 & 27.76 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\section{Results (TODO)}
+\section{TODO: Methodology}
+\label{ch:methodology}
 
-\subsection{f1 score and AUC-ROC}
+\section{Results}
 
-\begin{figure}[htbp]
+All models were trained and evaluated following the experimental setup described in their respective publications, 
+with the goal of reproducing the best performance reported by their authors. Where a paper explicitly specified 
+hyperparameter values, those values were used directly. For hyperparameters not described in a paper, 
+the default values provided in the model's official repository were adopted. This approach was chosen to ensure 
+that comparisons reflect each model's intended operating point rather than an arbitrarily tuned configuration, 
+and to expose any discrepancies between reported and reproducible performance. Training procedures, including 
+the number of epochs, learning rate schedules, and data preprocessing steps, were likewise kept consistent 
+with each paper's specification wherever possible. The efficiency metrics --- multiply-accumulate operations (MACs), 
+memory footprint, and inference latency --- were collected under a unified profiling setup, as 
+described in Chapter~\ref{ch:methodology}, to ensure cross-model comparability independent of the 
+individual training configurations.
+
+\subsection{F1 score and AU-PR}
+
+Table~\ref{tab:accuracy} reports the precision, recall, F1 score, and area under the precision-recall curve (AU-PR) 
+for all five models across the five benchmark datasets, together with the macro-average F1 and AU-PR computed over all datasets. 
+
+\begin{table}[ht]
+\centering
+\caption{Detection accuracy (Precision, Recall, F1, and AU-PR in \%) across five benchmark datasets. 
+Best F1 and best AU-PR per dataset in \textbf{bold}.}
+\label{tab:accuracy}
+\begin{tabular}{ll rrrrr}
+\toprule
+\textbf{Dataset} & \textbf{Metric} & \textbf{TimesNet} & \textbf{ModTCN} & \textbf{TranAD} & \textbf{AnomTr.} & \textbf{GTA} \\
+\midrule
+\multirow{4}{*}{SMD}
+    & Precision & 87.57 & 86.84 & 90.72 & 89.41 & 86.17 \\
+    & Recall    & 80.35 & 80.01 & 99.73 & 96.20 & 95.67 \\
+    & F1        & 83.80 & 83.28 & \textbf{95.01} & 92.68 & 90.67 \\
+    & AU-PR     & 14.90 & 14.20 & \textbf{50.19} &  4.45 & 15.82 \\
+\midrule
+\multirow{4}{*}{MSL}
+    & Precision & 87.04 & 89.39 & 90.38 & 98.89 & 91.69 \\
+    & Recall    & 71.40 & 74.80 & 99.99 & 98.00 & 84.24 \\
+    & F1        & 78.45 & 81.45 & \textbf{94.95} & 94.91 & 87.81 \\
+    & AU-PR     & 14.85 & 14.80 & \textbf{16.59} & 10.42 & 11.62 \\
+\midrule
+\multirow{4}{*}{SMAP}
+    & Precision & 89.49 & 90.29 & 80.43 & 93.67 & 73.66 \\
+    & Recall    & 55.44 & 53.85 & 99.99 & 99.32 & 78.48 \\
+    & F1        & 68.47 & 67.46 & 89.15 & \textbf{96.41} & 76.00 \\
+    & AU-PR     & 11.86 & 11.36 & 10.16 & \textbf{12.90} & 12.33 \\
+\midrule
+\multirow{4}{*}{SWaT}
+    & Precision & 90.29 & 95.85 & 99.77 & 98.88 & 90.27 \\
+    & Recall    & 95.41 & 86.97 & 68.79 & 87.00 & 88.36 \\
+    & F1        & \textbf{92.78} & 91.19 & 81.43 & 92.56 & 89.31 \\
+    & AU-PR     & 10.81 &  9.60 & \textbf{73.66} & 11.10 &  8.62 \\
+\midrule
+\multirow{4}{*}{PSM}
+    & Precision & 98.37 & 98.74 & 89.44 & 97.16 & 99.27 \\
+    & Recall    & 93.46 & 94.32 & 85.63 & 97.47 & 93.71 \\
+    & F1        & 95.85 & 96.48 & 87.50 & \textbf{97.31} & 96.41 \\
+    & AU-PR     & 37.80 & 38.29 & \textbf{46.01} & 28.84 & 34.97 \\
+\midrule
+\multirow{2}{*}{Average}
+    & F1        & 83.87 & 83.97 & 89.61 & \textbf{94.77} & 88.04 \\
+    & AU-PR     & 18.04 & 17.65 & \textbf{39.32} & 13.54 & 16.67 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Across the five datasets, TranAD \citep{tranad2022} and Anomaly Transformer \citep{anomalytransformer2022} consistently achieve the highest F1 scores. 
+TranAD attains the best F1 on SMD (95.01\%) and MSL (94.95\%), driven by near-perfect recall on both datasets (99.73\% and 99.99\%, respectively), 
+which is characteristic of its adversarial training objective and self-conditioning mechanism designed to amplify reconstruction deviations \citep{tranad2022}. 
+Anomaly Transformer leads on SMAP (96.41\%) and PSM (97.31\%), where its association-discrepancy criterion produces strong separation between normal and 
+anomalous time points \citep{anomalytransformer2022}. On SWaT, TimesNet achieves the highest F1 (92.78\%), marginally ahead of Anomaly Transformer (92.56\%) and ModernTCN (91.19\%).
+
+In terms of average F1, Anomaly Transformer ranks first (94.77\%), closely followed by TranAD (89.61\%) and GTA (88.04\%), while TimesNet (83.87\%) 
+and ModernTCN (83.97\%) trail slightly behind. The two convolutional models --- TimesNet \citep{timesnet2023} and ModernTCN \citep{moderntcn2024} 
+--- show very similar profiles across all datasets, with consistently high precision but lower recall on the more challenging SMAP dataset.
+
+The AU-PR results tell a notably different story. While all models achieve high F1 under point adjustment, AU-PR values are substantially lower across 
+the board, reflecting the difficulty of maintaining precision across the full range of anomaly score thresholds on heavily imbalanced test sets 
+\citep{darban2024survey}. TranAD stands out with the highest average AU-PR (39.32\%), largely owing to its strong SWaT (73.66\%) and SMD (50.19\%) results. 
+All other models cluster between 13 and 18\% in average AU-PR, with Anomaly Transformer notably low at 13.54\% despite its leading average F1. This divergence 
+between F1 and AU-PR highlights the sensitivity of point-adjusted F1 to threshold selection, and underscores the value of reporting AU-PR as a complementary, 
+threshold-independent measure of detection quality \citep{darban2024survey}.
+
+
+Figure~\ref{fig:f1_boxplot} and Figure~\ref{fig:aupr_boxplot} complement the per-dataset results in 
+Table~\ref{tab:accuracy} by visualising the distribution of F1 and AU-PR scores across datasets for 
+each model, making consistency and variance across benchmarks directly comparable.
+
+\begin{figure}[ht]
     \centering
     \includegraphics[width=\textwidth]{f1_boxplot_by_model.png}
-    \caption{todo}
-    \label{fig:f1_boxplot_by_model}
+    \caption{F1 score distribution per model across the five benchmark datasets under the 
+    point-adjust evaluation protocol. Each marker represents a single dataset result.}
+    \label{fig:f1_boxplot}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[ht]
     \centering
-    \includegraphics[width=\textwidth]{auc_boxplot_by_model.png}
-    \caption{todo}
-    \label{fig:auc_boxplot_by_model}
+    \includegraphics[width=\textwidth]{aupr_boxplot_by_model.png}
+    \caption{AU-PR distribution per model across the five benchmark datasets. 
+    Each marker represents a single dataset result.}
+    \label{fig:aupr_boxplot}
 \end{figure}
 
-\subsection{Memory usage}
+The F1 boxplot reveals that Anomaly Transformer achieves not only the highest median F1 but also 
+the narrowest interquartile range among all models, indicating consistent strong performance across 
+datasets. Its scores are tightly clustered between 92\% and 97\%. TranAD shows a wider spread, 
+reflecting its strong performance on SMD and MSL contrasted with a notably lower F1 on SWaT (81.43\%). 
+TimesNet and ModernTCN exhibit very similar distributions, both characterised by a wide interquartile range 
+driven by their weak performance on SMAP (68.47\% and 67.46\% respectively). 
+GTA presents a relatively compact distribution with a high median, 
+though it similarly struggles on SMAP, which appears as a pronounced outlier at 76.00\%, 
+while its PSM result (96.41\%) appears as a positive outlier at the upper end. It is worth 
+noting that the individual dataset markers for SMAP and PSM are not connected by the standard boxplot whiskers. 
+This occurs because with only five data points per model, any observation that falls sufficiently 
+far from the interquartile range is rendered as a standalone outlier marker rather than being 
+included within the whisker extent, following the conventional 1.5$\times$IQR rule.
 
-\begin{figure}[htbp]
+The AU-PR boxplot tells a strikingly different story. Four of the five models --- TimesNet, 
+ModernTCN, Anomaly Transformer, and GTA --- display very compressed distributions clustered 
+between roughly 8\% and 16\%, with PSM as a consistent positive outlier for all of them. This 
+reveals that, despite their differing F1 profiles, these models perform similarly poorly in 
+terms of threshold-independent detection quality across most datasets. TranAD is a clear 
+exception: its interquartile range spans approximately 16\% to 50\%, and its SWaT AU-PR of 
+73.66\% appears as a high outlier, driving both its superior average AU-PR and the large 
+variance in its distribution. Notably, Anomaly Transformer's SMD AU-PR (4.45\%) appears as a 
+strong negative outlier, highlighting that its high F1 on that dataset is highly sensitive to 
+threshold choice. Taken together, the two plots suggest that high point-adjusted F1 and high 
+AU-PR are not interchangeable: a model can rank first on F1 while performing near the bottom 
+on AU-PR, reinforcing the importance of reporting both metrics \citep{darban2024survey}.
+
+\subsubsection{What's behind TranAD's high AU-PR on SWaT}
+Figure~\ref{fig:pr_tranad_swat} shows the precision-recall curve for TranAD on the SWaT dataset and the no-skill baseline.
+
+\begin{figure}[ht]
     \centering
-    \includegraphics[width=\textwidth]{radar_memory.png}
-    \caption{todo}
-    \label{fig:radar_memory}
+    \includegraphics[width=\textwidth]{pr_curve_TranAD_SWaT.png}
+    \caption{Precision-recall curve for TranAD on SWaT. The dashed line indicates
+    the no-skill baseline equal to the dataset's anomaly rate (12.9\%).}
+    \label{fig:pr_tranad_swat}
 \end{figure}
 
-\subsection{Inference Time}
+A precision-recall curve is constructed by sweeping the anomaly score threshold from its highest 
+value (flagging almost nothing) to its lowest (flagging everything). Moving left to right along the curve 
+corresponds to lowering the anomaly score threshold and accepting more detections. A high area 
+under the curve represents both high recall and high precision: high precision is achieved by 
+having few false positives in the returned results, and high recall by having few false negatives 
+among all anomalous points \citep{sklearn_pr_curve}. A system with high precision but low recall 
+returns very few detections but most of its predicted labels are correct; a system with high 
+recall but low precision returns most of the relevant anomalies but the proportion of false alarms 
+among the returned results is high \citep{sklearn_pr_curve}. The 
+no-skill baseline --- shown as the dashed horizontal line at 0.129 --- represents a random 
+classifier that flags anomalies at the dataset's base rate; any useful model must remain 
+substantially above this line. The area under the full curve (AU-PR, here equal to 0.731) 
+summarises performance across all thresholds into a single scalar, making it a 
+threshold-independent measure of detection quality \citep{darban2024survey}.
+
+\paragraph{What the curve reveals for TranAD on SWaT.}
+The curve has a distinctive L-shape. From recall 0.0 to approximately 0.6, precision remains 
+near 1.0, meaning that at high thresholds TranAD flags very few points but almost all of them 
+are true anomalies. This reflects TranAD's adversarial self-conditioning mechanism, which 
+produces large, concentrated reconstruction errors on genuinely anomalous windows in 
+SWaT \citep{trad2022}. The steep vertical drop around recall 0.6--0.65 marks the point at 
+which the threshold crosses into regions where normal and anomalous score distributions begin 
+to overlap, causing precision to collapse rapidly. Beyond recall 0.65, the curve descends 
+gradually towards the baseline, indicating that recovering the remaining anomalous points 
+requires accepting a large number of false positives.
+
+
+\paragraph{Confusion Matrix.}
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.7\textwidth]{confusion_matrix_TranAD_SWaT.png}
+    \caption{Confusion matrix for TranAD on SWaT. Rows represent the 
+    actual class and columns the predicted class.}
+    \label{fig:cm_tranad_swat}
+\end{figure}
+
+Figure~\ref{fig:cm_tranad_swat} shows the confusion matrix for TranAD on SWaT. 
+Out of the total anomalous points in the test set, only 223 
+are flagged as anomalous (true positives), while 421 are missed entirely (false negatives). At 
+the same time, only 1 normal point is incorrectly flagged as anomalous (false positive), and 
+4,355 normal points are correctly identified as normal (true negatives).
+
+TranAD almost never raises a false alarm (only 1 false positive), but as a consequence misses 
+nearly two thirds of all anomalous points at the point level. It is important to note that 
+these are raw point-level counts without point adjustment applied. Under the point-adjust 
+protocol, any anomaly segment in which at least one point is correctly flagged is credited as 
+fully detected \citep{su2019smd}, which substantially changes the effective recall and explains 
+why the PA F1 reported in Table~\ref{tab:accuracy} is considerably higher than these raw counts 
+would suggest.
+
+\subsubsection{TODO: What type of anomalies were detected by each model? why?}
+
+\subsection{TODO: Memory Usage}
+
+\subsection{TODO: Inference Time}
 Why TimesNet latency is much higer that ModernTCN when both rily on convolutional architecture? 
 
 Meanwhile, both methods are inspired by CV and intend to make the time series
@@ -1165,20 +1337,6 @@ paths to accomplish this goal. TimesNet makes efforts to transform the 1D time s
 making the time series can be modeled by the 2D ConvNets in CV community. But the additional data
 transformation and aggregation modules also bring extra memory usage and slower training speed.
 
-\subsection{Visualising reconstructions}
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{TimesNet_SMD_worst_segment_channels.png}
-    \caption{TimesNet SMD missed anomaly}
-    \label{fig:TimesNet_SMD_worst_segment_channels}
-\end{figure}
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{ModernTCN_SMD_worst_segment_channels.png}
-    \caption{ModernTCN SMD missed anomaly}
-    \label{fig:ModernTCN_SMD_worst_segment_channels}
-\end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
