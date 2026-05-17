@@ -36,7 +36,7 @@ data_by_dataset = [F1[:, j] for j in range(len(DATASETS))]
 
 fig1, ax1 = plt.subplots(figsize=(10, 6))
 
-bp = ax1.boxplot(data_by_dataset, patch_artist=True, widths=0.5,
+bp = ax1.boxplot(data_by_dataset, patch_artist=True, widths=0.5, showfliers=False,
                  medianprops=dict(color='black', linewidth=2))
 
 for patch, color in zip(bp['boxes'], BOX_COLORS):
@@ -73,17 +73,24 @@ DATASET_COLORS  = ['#333333', '#e05c00', '#1a7a4a', '#9b1c1c', '#4a2c8a']
 
 fig2, ax2 = plt.subplots(figsize=(10, 6))
 
-bp2 = ax2.boxplot(data_by_model, patch_artist=True, widths=0.5,
+bp2 = ax2.boxplot(data_by_model, patch_artist=True, widths=0.5, showfliers=False,
                   medianprops=dict(color='black', linewidth=2))
 
 for patch, color in zip(bp2['boxes'], MODEL_COLORS):
     patch.set_facecolor(color)
     patch.set_alpha(0.7)
 
+MANUAL_JITTER = {
+    (2, 0): 0.08,   # TranAD, SMD → shift right
+    (3, 0): 0.08,   # Anomaly Transformer, SMD → shift right
+}
+
 for i in range(len(MODELS)):
     for j in range(len(DATASETS)):
-        ax2.scatter(i + 1, F1[i, j], color=DATASET_COLORS[j],
-                    marker=DATASET_MARKERS[j], s=70, zorder=5)
+        x_offset = MANUAL_JITTER.get((i, j), 0.0)
+        ax2.scatter(i + 1 + x_offset, F1[i, j], color=DATASET_COLORS[j],
+                    marker=DATASET_MARKERS[j], s=70, zorder=5,
+                    edgecolors='black', linewidths=0.5)
 
 handles2 = [mlines.Line2D([], [], color=c, marker=m, linestyle='None',
             markersize=8, label=name)
