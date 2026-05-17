@@ -346,6 +346,13 @@ if __name__ == '__main__':
 	result.update(hit_att(loss, labels))
 	result.update(ndcg(loss, labels))
 	print(df)
+	
+	# Save raw scores and labels for PR curve plotting
+	np.save(f'scores_{args.model}_{args.dataset}_loss.npy', lossFinal)
+	np.save(f'scores_{args.model}_{args.dataset}_lossT.npy', lossTfinal)
+	np.save(f'scores_{args.model}_{args.dataset}_labels.npy', labelsFinal)
+
+
 	pprint(result)
 	# pprint(getresults2(df, result))
 	# beep(4)
