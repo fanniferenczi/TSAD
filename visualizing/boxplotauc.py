@@ -3,7 +3,6 @@ AUC Boxplots — grouped by dataset and by model
 Master thesis: Time-Series Anomaly Detection
 
 Data source: results.xlsx (Sheet2)
-Evaluation protocol: Point-Adjust (PA)
 Models: TimesNet, ModernTCN, TranAD, Anomaly Transformer, GTA
 Datasets: SMD, MSL, SMAP, SWaT, PSM
 """
@@ -59,7 +58,7 @@ ax1.legend(handles=handles, title='Model', fontsize=9, title_fontsize=10, loc='u
 ax1.set_xticks(range(1, len(DATASETS) + 1))
 ax1.set_xticklabels(DATASETS, fontsize=12)
 ax1.set_ylabel('AUC (%)', fontsize=12)
-ax1.set_title('AUC Distribution per Dataset (Point-Adjust Evaluation)', fontsize=13)
+ax1.set_title('AUC Distribution per Dataset', fontsize=13)
 ax1.set_ylim(10, 100)
 ax1.yaxis.grid(True, linestyle='--', alpha=0.5)
 ax1.set_axisbelow(True)
@@ -92,7 +91,7 @@ ax2.legend(handles=handles2, title='Dataset', fontsize=9, title_fontsize=10, loc
 ax2.set_xticks(range(1, len(MODELS) + 1))
 ax2.set_xticklabels(MODELS, fontsize=11, rotation=10, ha='right')
 ax2.set_ylabel('AUC (%)', fontsize=12)
-ax2.set_title('AUC Distribution per Model (Point-Adjust Evaluation)', fontsize=13)
+ax2.set_title('AUC Distribution per Model', fontsize=13)
 ax2.set_ylim(10, 100)
 ax2.yaxis.grid(True, linestyle='--', alpha=0.5)
 ax2.set_axisbelow(True)
