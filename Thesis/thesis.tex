@@ -23,6 +23,8 @@
 \usepackage{hyperref}
 \usepackage{booktabs}
 \usepackage{multirow}
+\usepackage{makecell}
+\usepackage{soul}
 
 \renewcommand*\sfdefault{lmss}
 \renewcommand*\ttdefault{txtt}
@@ -51,11 +53,6 @@
 
 \todo{in English\dots}
 
-\chapter*{Resum\'e}
-\addcontentsline{toc}{chapter}{Resum\'e}
-
-\todo{in Danish\dots}
-
 \chapter*{Acknowledgments}
 \addcontentsline{toc}{chapter}{Acknowledgments}
 
@@ -77,14 +74,7 @@
 \chapter{Introduction}
 \label{ch:intro}
 
-\todo{motivate and explain the problem to be addressed}
-
-\todo{example of a citation: \cite{DBLP:conf/sas/ChristensenMS03}}
-\todo{get your bibtex entries from \url{https://dblp.org/}}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\chapter{Related Work}
+\todo{intro\dots}
 
 \section{Anomalies in Time Series}
 The detection of anomalies --- also referred to as outlier or novelty detection --- has been an active area of research across numerous application domains since the 1960s \citep{darban2024survey}.
@@ -141,7 +131,7 @@ Anomalies in time series can be classified as \textbf{temporal}, \textbf{interme
         \textbf{(b)}~Intermetric and temporal-intermetric anomalies in a 
         multivariate time series (MTS), where Metric~1 is power consumption 
         and Metric~2 is CPU usage.
-        Figure reproduced from \citep{darban2024survey}.%
+        Figure extracted from \citep{darban2024survey}.%
     }
     \label{fig:anomaly_types}
 \end{figure}
@@ -367,7 +357,7 @@ pipeline within a single TimesBlock proceeds in three conceptual stages
     tensor is processed by a shared parameter-efficient inception block in 2D
     space. The resulting representations are projected back to 1D and fused
     via amplitude-weighted adaptive aggregation to produce the output.
-    Figure reproduced from \citep{timesnet2023}.}
+    Figure extracted from \citep{timesnet2023}.}
     \label{fig:timesnet_architecture}
 \end{figure}
 
@@ -459,7 +449,7 @@ three components that each handle a distinct type of information mixing
     per-variable feature learning (ConvFFN1), and cross-variable dependency capture
     (ConvFFN2) into three decoupled operations. $M$, $N$, and $D$ denote the variable,
     temporal, and feature dimensions respectively.
-    Figure reproduced from \citep{moderntcn2024}.}
+    Figure extracted from \citep{moderntcn2024}.}
     \label{fig:moderntcn_block}
 \end{figure}
 
@@ -546,7 +536,7 @@ window, which is the key advantage over window-only models \citep{tranad2022}.
     the reconstruction error from $O_1$ is used as a focus score to re-condition
     the encoder, producing a refined reconstruction $\hat{O}_2$. The anomaly score
     is the average of the two reconstruction errors.
-    Figure reproduced from \citep{tranad2022}.}
+    Figure extracted from \citep{tranad2022}.}
     \label{fig:tranad_model}
 \end{figure}
 
@@ -648,7 +638,7 @@ standard single-branch self-attention with a \textbf{two-branch structure}
     updates its own branch. The reconstruction output is produced from the
     series-association branch by multiplying with $V$. The overall model (right)
     stacks $L$ such Anomaly-Attention blocks residually.
-    Figure reproduced from \citep{anomalytransformer2022}.}
+    Figure extracted from \citep{anomalytransformer2022}.}
     \label{fig:anomaly_transformer_arch}
 \end{figure}
 
@@ -771,7 +761,7 @@ encoder-decoder} \citep{gta2022}.
     multi-scale dilated convolutions with Influence Propagation graph convolutions
     to produce spatiotemporal embeddings. These are then fed into a
     Transformer-based encoder-decoder for single-step forecasting.
-    Figure reproduced from \citep{gta2022}.}
+    Figure extracted from \citep{gta2022}.}
     \label{fig:gta_arch}
 \end{figure}
 
@@ -960,7 +950,7 @@ For convolution-based models such as TimesNet \cite{timesnet2023} and ModernTCN
 dominant cost lies in convolutional and linear layers that \texttt{fvcore} handles
 natively. For the Transformer-based models evaluated in this thesis --- TranAD
 \cite{tranad2022}, Anomaly Transformer \cite{anomalytransformer2022}, and GTA
-\cite{gta2023} --- the standard handlers were insufficient. \texttt{fvcore} only
+\cite{gta2022} --- the standard handlers were insufficient. \texttt{fvcore} only
 registers handlers for a subset of PyTorch operators, and silently omits any operation
 for which no handler is defined. For these architectures, a range of operations went
 uncounted by default, including element-wise arithmetic (e.g.\ \texttt{aten::mul}), 
@@ -1155,45 +1145,45 @@ for all five models across the five benchmark datasets, together with the macro-
 \begin{table}[ht]
 \centering
 \caption{Detection accuracy (Precision, Recall, F1, and AU-PR in \%) across five benchmark datasets. 
-Best F1 and best AU-PR per dataset in \textbf{bold}.}
+Best F1 and AU-PR per dataset in \textbf{bold}, second-best \underline{underlined}.}
 \label{tab:accuracy}
 \begin{tabular}{ll rrrrr}
 \toprule
-\textbf{Dataset} & \textbf{Metric} & \textbf{TimesNet} & \textbf{ModTCN} & \textbf{TranAD} & \textbf{AnomTr.} & \textbf{GTA} \\
+\textbf{Dataset} & \textbf{Metric} $\uparrow$ & \thead{\textbf{TimesNet}\\\citep{timesnet2023}} & \thead{\textbf{ModTCN}\\\citep{moderntcn2024}} & \thead{\textbf{TranAD}\\\citep{tranad2022}} & \thead{\textbf{AnomTr.}\\\citep{anomalytransformer2022}} & \thead{\textbf{GTA}\\\citep{gta2022}} \\
 \midrule
 \multirow{4}{*}{SMD}
     & Precision & 87.57 & 86.84 & 90.72 & 89.41 & 86.17 \\
     & Recall    & 80.35 & 80.01 & 99.73 & 96.20 & 95.67 \\
-    & F1        & 83.80 & 83.28 & \textbf{95.01} & 92.68 & 90.67 \\
-    & AU-PR     & 14.90 & 14.20 & \textbf{50.19} &  4.45 & 15.82 \\
+    & F1        & 83.80 & 83.28 & \textbf{95.01} & \underline{92.68} & 90.67 \\
+    & AU-PR     & 14.90 & 14.20 & \textbf{50.19} &  4.45 & \underline{15.82} \\
 \midrule
 \multirow{4}{*}{MSL}
     & Precision & 87.04 & 89.39 & 90.38 & 98.89 & 91.69 \\
     & Recall    & 71.40 & 74.80 & 99.99 & 98.00 & 84.24 \\
-    & F1        & 78.45 & 81.45 & \textbf{94.95} & 94.91 & 87.81 \\
-    & AU-PR     & 14.85 & 14.80 & \textbf{16.59} & 10.42 & 11.62 \\
+    & F1        & 78.45 & 81.45 & \textbf{94.95} & \underline{94.91} & 87.81 \\
+    & AU-PR     & \underline{14.85} & 14.80 & \textbf{16.59} & 10.42 & 11.62 \\
 \midrule
 \multirow{4}{*}{SMAP}
     & Precision & 89.49 & 90.29 & 80.43 & 93.67 & 73.66 \\
     & Recall    & 55.44 & 53.85 & 99.99 & 99.32 & 78.48 \\
-    & F1        & 68.47 & 67.46 & 89.15 & \textbf{96.41} & 76.00 \\
-    & AU-PR     & 11.86 & 11.36 & 10.16 & \textbf{12.90} & 12.33 \\
+    & F1        & 68.47 & 67.46 & \underline{89.15} & \textbf{96.41} & 76.00 \\
+    & AU-PR     & 11.86 & 11.36 & 10.16 & \textbf{12.90} & \underline{12.33} \\
 \midrule
 \multirow{4}{*}{SWaT}
     & Precision & 90.29 & 95.85 & 99.77 & 98.88 & 90.27 \\
     & Recall    & 95.41 & 86.97 & 68.79 & 87.00 & 88.36 \\
-    & F1        & \textbf{92.78} & 91.19 & 81.43 & 92.56 & 89.31 \\
-    & AU-PR     & 10.81 &  9.60 & \textbf{73.66} & 11.10 &  8.62 \\
+    & F1        & \textbf{92.78} & 91.19 & 81.43 & \underline{92.56} & 89.31 \\
+    & AU-PR     & 10.81 &  9.60 & \textbf{73.66} & \underline{11.10} &  8.62 \\
 \midrule
 \multirow{4}{*}{PSM}
     & Precision & 98.37 & 98.74 & 89.44 & 97.16 & 99.27 \\
     & Recall    & 93.46 & 94.32 & 85.63 & 97.47 & 93.71 \\
-    & F1        & 95.85 & 96.48 & 87.50 & \textbf{97.31} & 96.41 \\
-    & AU-PR     & 37.80 & 38.29 & \textbf{46.01} & 28.84 & 34.97 \\
+    & F1        & 95.85 & \underline{96.48} & 87.50 & \textbf{97.31} & 96.41 \\
+    & AU-PR     & 37.80 & \underline{38.29} & \textbf{46.01} & 28.84 & 34.97 \\
 \midrule
 \multirow{2}{*}{Average}
-    & F1        & 83.87 & 83.97 & 89.61 & \textbf{94.77} & 88.04 \\
-    & AU-PR     & 18.04 & 17.65 & \textbf{39.32} & 13.54 & 16.67 \\
+    & F1        & 83.87 & 83.97 & \underline{89.61} & \textbf{94.77} & 88.04 \\
+    & AU-PR     & \underline{18.04} & 17.65 & \textbf{39.32} & 13.54 & 16.67 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1294,7 +1284,7 @@ The curve has a distinctive L-shape. From recall 0.0 to approximately 0.6, preci
 near 1.0, meaning that at high thresholds TranAD flags very few points but almost all of them 
 are true anomalies. This reflects TranAD's adversarial self-conditioning mechanism, which 
 produces large, concentrated reconstruction errors on genuinely anomalous windows in 
-SWaT \citep{trad2022}. The steep vertical drop around recall 0.6--0.65 marks the point at 
+SWaT \citep{tranad2022}. The steep vertical drop around recall 0.6--0.65 marks the point at 
 which the threshold crosses into regions where normal and anomalous score distributions begin 
 to overlap, causing precision to collapse rapidly. Beyond recall 0.65, the curve descends 
 gradually towards the baseline, indicating that recovering the remaining anomalous points 
