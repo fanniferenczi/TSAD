@@ -1,0 +1,28 @@
+Run: 2026-05-22 18:08:25
+===============================================================================================
+MEMORY SUMMARY - TranAD Anomaly Detection (batch_size=128)
+===============================================================================================
+Dataset  Params       Weights exact   Weights CPU   Train peak    Infer peak    Overhead  
+                         (paramsx8B)   (allocated)          (MB)          (MB)       (MB)
+-----------------------------------------------------------------------------------------------
+SMD         127,538          1.02 MB       1.03 MB       2.47 MB       1.45 MB     1.45 MB
+MSL         261,243          2.09 MB       2.10 MB       4.81 MB       2.72 MB     2.71 MB
+SMAP         57,273          0.46 MB       0.46 MB       1.20 MB       0.74 MB     0.74 MB
+SWaT        225,519          1.80 MB       1.81 MB       4.19 MB       2.39 MB     2.38 MB
+PSM          57,273          0.46 MB       0.46 MB       1.20 MB       0.74 MB     0.74 MB
+
+── Verification 1: independent weight size check ──────────────────
+  SMD      A(numel×bytes)=1.020MB  B(serialized)=1.040MB  C(storage)=1.020MB
+  MSL      A(numel×bytes)=2.090MB  B(serialized)=2.112MB  C(storage)=2.090MB
+  SMAP     A(numel×bytes)=0.458MB  B(serialized)=0.476MB  C(storage)=0.458MB
+  SWaT     A(numel×bytes)=1.804MB  B(serialized)=1.826MB  C(storage)=1.804MB
+  PSM      A(numel×bytes)=0.458MB  B(serialized)=0.476MB  C(storage)=0.458MB
+
+── Verification 2: overhead decomposition ─────────────────────────
+  Dataset     input   output    grads      sum   overhead match?
+  -----------------------------------------------------------------
+  SMD         0.389    0.039    1.020    1.448      1.448 OK
+  MSL         0.563    0.056    2.090    2.709      2.709 OK
+  SMAP        0.256    0.026    0.458    0.740      0.740 OK
+  SWaT        0.522    0.052    1.804    2.379      2.379 OK
+  PSM         0.256    0.026    0.458    0.740      0.740 OK
