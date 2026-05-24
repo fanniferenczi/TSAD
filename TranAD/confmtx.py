@@ -18,6 +18,9 @@ FN = int(((preds == 0) & (labels == 1)).sum())
 cm = np.array([[TP, FN],
                [FP, TN]])
 
+total = cm.sum()
+cm_pct = cm / total * 100
+
 # ── Plot ───────────────────────────────────────────────────────────────────────
 fig, ax = plt.subplots(figsize=(5, 4))
 
@@ -26,8 +29,8 @@ plt.colorbar(im, ax=ax)
 
 for i in range(2):
     for j in range(2):
-        ax.text(j, i, f'{cm[i, j]:,}',
-                ha='center', va='center', fontsize=14,
+        ax.text(j, i, f'{cm[i, j]:,}\n({cm_pct[i, j]:.1f}%)',
+                ha='center', va='center', fontsize=12,
                 color='white' if cm[i, j] > cm.max() / 2 else 'black')
 
 ax.set_xticks([0, 1])

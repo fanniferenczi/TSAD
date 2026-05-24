@@ -219,13 +219,25 @@ anomalies \citep{darban2024survey}.
 Before the widespread adoption of deep learning, TSAD relied on several classical strategies \citep{darban2024survey}:
  
 \begin{itemize}
-    \item \textbf{Statistical methods:} Learn a statistical model of normal behaviour and flag deviations from it. Interpretable but limited in capturing complex, non-linear patterns.
-    \item \textbf{Clustering-based methods:} Learn a normal profile of time series windows and use the distance to the centroid of normal clusters as an anomaly score, or identify clusters with few members as anomalous.
-    \item \textbf{Distance-based methods:} Use the distance from a time window to its nearest neighbours as an anomaly score.
-    \item \textbf{Density-based methods:} Estimate the local density of data points; windows falling in low-density regions are flagged as anomalies.
+    \item \textbf{Statistical methods:} Learn a statistical model of normal behaviour and flag deviations from it. These methods aim to model the normal 
+    distribution of the time series and detect points that deviate significantly from the expected 
+    distribution\citep{darban2024survey}.
+    \item \textbf{Clustering-based methods:} Learn a normal profile of time series windows and 
+    use the distance to the centroid of normal clusters as an anomaly score, or identify clusters 
+    with few members as anomalous \citep{darban2024survey}. More recent methods in this 
+    category first cluster data to obtain a representation of normal behaviour and then compute 
+    the distance to this normal behaviour to detect anomalies \citep{boniol2023trends}.
+    \item \textbf{Distance-based methods:} Use the distance from a time window to its nearest 
+    neighbours as an anomaly score \citep{darban2024survey}. A prominent example is 
+    discord-based approaches, which identify subsequences that are maximally different from 
+    all others in the time series using nearest-neighbour distances \citep{boniol2023trends}.
+    \item \textbf{Density-based methods:} Estimate the local density of data points; windows 
+    falling in low-density regions are flagged as anomalies \citep{darban2024survey}. Rather 
+    than measuring nearest-neighbour distances, these methods focus on detecting globally 
+    isolated behaviours. Isolation Forest \citep{liu2008isolation} is a notable example in this category, isolating 
+    instances by building random splitting trees, where a shorter path length in the tree 
+    indicates a higher likelihood of being anomalous \citep{boniol2023trends}.
 \end{itemize}
- 
-\noindent These methods exhibit significant limitations when applied to complex, high-dimensional time series with both spatial and temporal dependencies, motivating the shift towards deep learning approaches.
 
 
 
@@ -238,13 +250,82 @@ Many deep anomaly detection models have been developed, providing significantly 
 A range of deep architectures has been explored for anomaly detection, including:
  
 \begin{itemize}
-    \item \textbf{Recurrent Neural Networks (RNN),} including Long Short-Term Memory (LSTM) and Gated Recurrent Unit (GRU);
-    \item \textbf{Convolutional Neural Networks (CNN),} including Temporal Convolutional Networks (TCN) and ResNet;
-    \item \textbf{Autoencoders (AE),} including Sparse AE (SAE), Denoising AE (DAE), Convolutional AE (CAE), and Variational AE (VAE);
-    \item \textbf{Generative Adversarial Networks (GAN);}
-    \item \textbf{Graph Neural Networks (GNN),} including Graph Convolutional Networks (GCN) and Graph Attention Networks (GAT);
-    \item \textbf{Transformers;}
-    \item \textbf{Hierarchical Temporal Memory (HTM).}
+    \item \textbf{Recurrent Neural Networks (RNN),} including Long Short-Term Memory (LSTM) 
+    and Gated Recurrent Unit (GRU). RNNs have internal memory allowing them to process 
+    variable-length input sequences and retain temporal dynamics \citep{darban2024survey}. 
+    LSTM networks extend RNNs with memory lasting thousands of steps, enabling superior 
+    modelling of long-term dependencies. Notable models in this category include LSTM-AD 
+    \citep{malhotra2015lstm}, which uses hierarchical recurrent layers for unsupervised anomaly 
+    detection in univariate time series, and LSTM-NDT \citep{hundman2018detecting}, which 
+    combines LSTM with nonparametric dynamic thresholding for spacecraft anomaly detection. 
+    GRU \citep{cho2014properties} offers a simpler gating structure than LSTM, leading to faster training times while 
+    retaining the ability to capture temporal dependencies \citep{darban2024survey}.
+
+    \item \textbf{Convolutional Neural Networks (CNN),} including Temporal Convolutional 
+    Networks (TCN) \citep{bai2018empirical}. CNNs are adaptations of multilayer perceptrons designed to 
+    identify hierarchical patterns in data. These
+    networks employ convolutional, pooling, and fully connected layers, \citep{darban2024survey}. 
+    DeepAnT \citep{munir2018deepant} is a notable CNN-based model that 
+    efficiently detects small deviations in time series patterns with minimal training data.
+    Despite their effectiveness, traditional CNNs struggle with sequential data due to their inherent
+    design.
+    TCNs address the 
+    limitation of standard CNNs with sequential data by using dilated convolutions to 
+    accommodate time series, ensuring that all computations for a timestamp use only 
+    historical data \citep{darban2024survey}.
+    TCN-ms \citep{he2019temporal} uses a TCN trained on normal data to forecast trends and 
+    calculate anomaly scores using a multivariate Gaussian distribution fitted to prediction 
+    errors, including a skipping connection to blend multi-scale features.
+
+    \item \textbf{Autoencoders (AE)} \citep{kramer1991nonlinear}, including Sparse AE (SAE) \citep{ng2011sparse}, 
+    Denoising AE (DAE) \citep{vincent2008extracting}, 
+    Convolutional AE (CAE) \citep{noh2015learning}, and Variational AE (VAE) \citep{kingma2014auto}. 
+    AEs consist of an encoder that 
+    compresses input into a low-dimensional latent representation and a decoder that 
+    reconstructs the input, with anomalies detected based on high reconstruction error 
+    \citep{darban2024survey}. VAEs extend this framework by encoding inputs as 
+    distributions rather than single points, enabling probabilistic anomaly scoring. 
+    OmniAnomaly \citep{su2019robust} uses a VAE with stochastic RNNs for robust 
+    representations of multivariate data and applies POT \citep{siffer2017pot} for thresholding. USAD 
+    \citep{audibert2020usad} employs adversarially trained AEs to amplify reconstruction 
+    errors and distinguish anomalies more reliably. RANSynCoders \citep{abdulaal2021practical} 
+    proposes an architecture with multiple encoders and decoders using random feature 
+    selection and majority voting to localise anomalies, developed for real-time use at eBay.
+
+    \item \textbf{Generative Adversarial Networks (GAN).} GANs consist of a generator and 
+    a discriminator trained adversarially, where the generator learns the normal data 
+    distribution and the discriminator identifies deviations \citep{darban2024survey}. 
+    MAD-GAN \citep{li2019madgan} uses LSTM-RNN as both generator and discriminator to 
+    capture temporal relationships in multivariate time series, detecting anomalies via 
+    reconstruction error and discrimination loss. BeatGAN \citep{zhou2019beatgan} combines 
+    AEs and GANs to regularise reconstruction robustly, showing strong results on both ECG 
+    and sensor data.
+
+    \item \textbf{Graph Neural Networks (GNN),} including Graph Convolutional Networks 
+    (GCN) \citep{kipf2017semi} and Graph Attention Networks (GAT) \citep{velickovic2018graph}. 
+    GNNs extract spatial information from 
+    multivariate time series by forming a graph structure in which each dimension is 
+    represented as a node and edges indicate learned inter-sensor correlations 
+    \citep{darban2024survey}. GDN \citep{deng2021graph} is a GNN attention-based model 
+    that captures sensor characteristics as nodes and their correlations as edges, predicting 
+    behaviour based on adjacent sensors. 
+
+    \item \textbf{Transformers.} Transformers \citep{vaswani2017attention} process the entire input sequence simultaneously 
+    using attention mechanisms, enabling efficient capture of long-term dependencies without 
+    recurrence \citep{darban2024survey}. Anomaly Transformer \citep{anomalytransformer2022} 
+    introduces an association discrepancy criterion that simultaneously models prior and 
+    series associations for each timestamp, making rare anomalies more distinguishable. 
+    TranAD \citep{tranad2022} adds self-conditioning and adversarial training to a 
+    transformer-based architecture, amplifying subtle reconstruction errors and improving 
+    generalisation on large multivariate inputs.
+
+    \item \textbf{Hierarchical Temporal Memory (HTM).} HTM \citep{george2008brain} mimics the hierarchical 
+    processing of the neocortex, encoding inputs through sparse spatial pooling and 
+    modelling temporal patterns via sequence memory \citep{darban2024survey}. It is robust 
+    to noise, has high capacity, and can learn multiple patterns simultaneously. Numenta HTM 
+    \citep{ahmad2017unsupervised} detects temporal anomalies in univariate time series in 
+    both predictable and noisy environments, adapting continuously to changes without 
+    requiring labelled data.
 \end{itemize}
  
 Deep TSAD models process inputs either point-by-point or using sliding windows, and output either continuous anomaly scores or binary labels \citep{darban2024survey}.
@@ -311,6 +392,49 @@ This allows the model to simultaneously benefit from prediction accuracy and lat
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \chapter{Chosen Models}
+
+The five models evaluated in this thesis --- TimesNet \citep{timesnet2023} , ModernTCN \citep{moderntcn2024} , TranAD \citep{tranad2022}, 
+Anomaly Transformer \citep{anomalytransformer2022} , and GTA \citep{gta2022} 
+--- were selected to represent a diverse set of deep learning 
+architectures for time series anomaly detection, spanning convolutional, transformer-based, 
+and graph-based approaches. The selection was driven by a combination of reported accuracy, 
+architectural diversity, and relevance to IoT edge deployment.
+
+TimesNet \citep{timesnet2023} and ModernTCN \citep{moderntcn2024} were chosen as 
+representatives of the CNN-based family. Both are task-general backbones that have 
+demonstrated strong performance on anomaly detection benchmarks, and they are frequently 
+compared against each other in the literature --- including directly in the ModernTCN 
+paper itself \citep{moderntcn2024}. Their shared reconstruction-based detection strategy 
+and similar evaluation setup make them a natural pair for cross-architectural comparison, 
+while their different internal designs --- TimesNet's 2D transformation versus ModernTCN's 
+large-kernel depthwise convolution --- make the comparison informative about what drives 
+CNN performance in TSAD.
+
+TranAD \citep{tranad2022} was selected as a representative of the Transformer-based 
+family, providing an architectural contrast to the two CNN-based models. Beyond 
+detection accuracy, TranAD proved particularly compelling because of its efficiency 
+profile: it demonstrated competitive inference speed and low memory footprint alongside 
+strong F1 scores, making it a strong candidate for resource-constrained edge deployment. 
+This combination of accuracy and efficiency motivated a deeper investigation into 
+Transformer-based models, leading to the selection of two additional candidates.
+
+Anomaly Transformer \citep{anomalytransformer2022} was selected because its authors 
+reported higher detection accuracy than TranAD across several benchmarks, making it a 
+natural next candidate within the Transformer family. Its association discrepancy 
+criterion --- which measures how a time point's attention distributes across the series 
+rather than how poorly it is reconstructed --- represents a fundamentally different 
+detection philosophy from TranAD's adversarial reconstruction amplification, making the 
+comparison between the two architecturally and methodologically interesting.
+
+GTA \citep{gta2022} was selected because it was explicitly designed for IoT sensor 
+data, which is directly relevant to the edge deployment focus of this thesis. Its 
+graph-based architecture learns the dependency structure between sensors end-to-end, 
+making it the only model in the evaluation set to explicitly model inter-sensor 
+relationships as a graph topology. Combined with its forecasting-based detection 
+approach --- which contrasts with the reconstruction-based strategy of all other 
+selected models --- GTA broadens the architectural diversity of the evaluation and 
+provides a perspective on how IoT-native design choices affect detection performance 
+and efficiency.
 
 \section{TimesNet}
 TimesNet \citep{timesnet2023} is a task-general deep learning backbone for time series
@@ -825,6 +949,39 @@ the patterns the model has learned.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \chapter{Experiments}
+
+The evaluation framework used in this thesis is designed around two complementary 
+objectives: assessing detection accuracy and assessing suitability for IoT edge 
+deployment.
+Deploying AI models on edge devices faces significant challenges, including 
+limited computing power, restricted memory budgets, and real-time processing requirements 
+\citep{wang2025optimizing}, and a model that achieves high detection accuracy but is 
+computationally intractable or memory-prohibitive on constrained hardware is of limited 
+practical value in the target setting. For this reason, accuracy metrics are reported 
+alongside a comprehensive set of efficiency metrics covering computational cost, memory 
+footprint, and inference speed. 
+
+On the accuracy side, Precision, Recall, and F1 Score 
+capture point-wise detection quality, with F1 serving as the primary comparison metric 
+since it is universally reported in the papers of all five evaluated models and provides 
+a balanced view of both false alarms and missed detections \citep{darban2024survey}. 
+F1 scores are computed under the point-adjust (PA) protocol \citep{xu2018donut}, which 
+is the standard convention in the TSAD literature and is adopted by all baseline results 
+compared in this thesis, ensuring fair cross-model comparison 
+\citep{xu2022detectionadjustment}. The Area Under the Precision-Recall Curve (AU-PR) 
+is additionally reported without point adjustment, providing a threshold-independent and 
+inflation-free complementary perspective that is particularly informative on the heavily 
+imbalanced datasets used here \citep{darban2024survey}. 
+
+On the efficiency side, 
+Multiply-Accumulate Operations (MACs) quantify the hardware-independent computational 
+cost of a forward pass, measured using \texttt{fvcore} \citep{fvcore} with custom 
+operator handlers where needed; five memory metrics capture different aspects of the 
+model's memory demand from minimum storage cost to peak runtime footprint; and latency 
+and throughput characterise how quickly each model can process incoming sensor data, 
+which directly determines whether it can sustain real-time inference on a resource-limited 
+edge device \citep{wang2025optimizing}.
+
 \section{Evaluation Metrics}
 \subsection{Accuracy}
 
@@ -999,7 +1156,14 @@ produced during the forward pass in order to compute gradients.
 The peak inference memory is the maximum GPU memory occupied during a forward pass
 on the test set, with no gradient computation. This is the relevant memory figure
 for deployment, since in production the model only performs forward passes on new
-incoming data. 
+incoming data. During training, PyTorch builds a 
+computational graph by retaining all intermediate activation tensors --- that is, the 
+output of every layer --- rather than discarding them after use \citep{pytorch_autograd}. This is necessary because 
+the backward pass computes gradients via the chain rule, and each layer's gradient depends 
+on the activations produced by that layer during the forward pass. At inference time, 
+however, no such graph is needed: activations can be discarded immediately after each 
+layer has produced its output, which is why peak inference memory is substantially lower 
+than peak training memory.
 
 \paragraph{Memory overhead.}
 The memory overhead is defined as the difference between the peak training memory
@@ -1037,18 +1201,9 @@ over time. Throughput is particularly relevant when evaluating a model's ability
 to keep pace with the data rate of a sensor stream without accumulating a
 backlog. 
 
-\paragraph{Relationship between the two metrics.}
-Latency and throughput are related but capture different deployment concerns.
-A model with low latency on a small batch may still achieve high throughput if
-batches can be processed in rapid succession. Conversely, a model optimised
-for high throughput through large batch sizes may incur higher per-batch
-latency. Both metrics are reported here to give a complete picture of each
-model's runtime behaviour, since edge deployments vary in whether they
-prioritise low response time or high data volume handling.
-
 \section{Datasets}
 
-\paragraph{Server Machine Dataset (SMD)}
+\paragraph{Server Machine Dataset (SMD).}
 
 The Server Machine Dataset (SMD) \cite{su2019smd} is a real-world multivariate time series dataset
 collected from a large Internet company. It contains five weeks of resource utilisation traces
@@ -1058,7 +1213,7 @@ anomalous. For SMD, this is approximately 4.2\%, meaning
 that the vast majority of observations reflect normal server behaviour, with anomalous events
 being relatively rare. 
 
-\paragraph{Mars Science Laboratory (MSL)}
+\paragraph{Mars Science Laboratory (MSL).}
 
 The Mars Science Laboratory (MSL) \cite{hundman2018smap} dataset is a publicly available NASA dataset
 containing telemetry anomaly data derived from the Incident
@@ -1070,7 +1225,7 @@ most widely used benchmarks in the TSAD literature and
 is commonly evaluated alongside SMAP dataset, both originating from the
 same NASA spacecraft monitoring programme.
 
-\paragraph{Soil Moisture Active Passive (SMAP)}
+\paragraph{Soil Moisture Active Passive (SMAP).}
 
 The Soil Moisture Active Passive (SMAP) dataset \cite{hundman2018smap}
 is a publicly available NASA dataset, released alongside MSL and originating from the same
@@ -1079,7 +1234,7 @@ Incident Surprise Anomaly (ISA) reports of the SMAP satellite, covering measurem
 such as radiation, temperature, and power, across 25 dimensions. 
 The anomaly rate is approximately 12.83\%. 
 
-\paragraph{Secure Water Treatment (SWaT)}
+\paragraph{Secure Water Treatment (SWaT).}
 
 The Secure Water Treatment (SWaT) dataset \cite{mathur2016swat} is collected from a
 real-world water treatment testbed operated for cyber-attack investigation. The data
@@ -1094,7 +1249,7 @@ Unlike the NASA spacecraft datasets, SWaT exhibits strong
 topological dependencies between sensors, as any change in one sensor can propagate
 through the network to other sensors \cite{gta2022}.
 
-\paragraph{Pooled Server Metrics (PSM)}
+\paragraph{Pooled Server Metrics (PSM).}
 
 The Pooled Server Metrics (PSM) dataset \cite{abdulaal2021psm} is a real-world
 multivariate time series dataset collected internally from multiple application
@@ -1206,52 +1361,47 @@ between F1 and AU-PR highlights the sensitivity of point-adjusted F1 to threshol
 threshold-independent measure of detection quality \citep{darban2024survey}.
 
 
-Figure~\ref{fig:f1_boxplot} and Figure~\ref{fig:aupr_boxplot} complement the per-dataset results in 
+Figure~\ref{fig:f1_stripplot} and Figure~\ref{fig:aupr_stripplot} complement the per-dataset results in 
 Table~\ref{tab:accuracy} by visualising the distribution of F1 and AU-PR scores across datasets for 
 each model, making consistency and variance across benchmarks directly comparable.
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=\textwidth]{f1_boxplot_by_model.png}
+    \includegraphics[width=\textwidth]{f1_stripplot_by_model.png}
     \caption{F1 score distribution per model across the five benchmark datasets under the 
     point-adjust evaluation protocol. Each marker represents a single dataset result.}
-    \label{fig:f1_boxplot}
+    \label{fig:f1_stripplot}
 \end{figure}
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=\textwidth]{aupr_boxplot_by_model.png}
+    \includegraphics[width=\textwidth]{aupr_stripplot_by_model.png}
     \caption{AU-PR distribution per model across the five benchmark datasets. 
     Each marker represents a single dataset result.}
-    \label{fig:aupr_boxplot}
+    \label{fig:aupr_stripplot}
 \end{figure}
 
-The F1 boxplot reveals that Anomaly Transformer achieves not only the highest median F1 but also 
-the narrowest interquartile range among all models, indicating consistent strong performance across 
-datasets. Its scores are tightly clustered between 92\% and 97\%. TranAD shows a wider spread, 
-reflecting its strong performance on SMD and MSL contrasted with a notably lower F1 on SWaT (81.43\%). 
-TimesNet and ModernTCN exhibit very similar distributions, both characterised by a wide interquartile range 
-driven by their weak performance on SMAP (68.47\% and 67.46\% respectively). 
-GTA presents a relatively compact distribution with a high median, 
-though it similarly struggles on SMAP, which appears as a pronounced outlier at 76.00\%, 
-while its PSM result (96.41\%) appears as a positive outlier at the upper end. It is worth 
-noting that the individual dataset markers for SMAP and PSM are not connected by the standard boxplot whiskers. 
-This occurs because with only five data points per model, any observation that falls sufficiently 
-far from the interquartile range is rendered as a standalone outlier marker rather than being 
-included within the whisker extent, following the conventional 1.5$\times$IQR rule.
+The F1 strip plot reveals that Anomaly Transformer achieves the highest scores and the most 
+consistent performance across datasets, with its points tightly clustered between 92\% and 97\%. 
+TranAD shows a wider spread, reflecting its strong performance on SMD and MSL contrasted with 
+a notably lower F1 on SWaT (81.43\%). TimesNet and ModernTCN exhibit very similar profiles, 
+both characterised by wide spread driven by their weak performance on SMAP (68.47\% and 
+67.46\% respectively), which appears as a clear low outlier for both models. GTA presents a 
+relatively compact spread with high scores on most datasets, though it similarly struggles on 
+SMAP (76.00\%), while its PSM result (96.41\%) sits at the upper end.
 
-The AU-PR boxplot tells a strikingly different story. Four of the five models --- TimesNet, 
-ModernTCN, Anomaly Transformer, and GTA --- display very compressed distributions clustered 
-between roughly 8\% and 16\%, with PSM as a consistent positive outlier for all of them. This 
+The AU-PR strip plot tells a strikingly different story. Four of the five models --- TimesNet, 
+ModernTCN, Anomaly Transformer, and GTA --- have their points tightly clustered between 
+roughly 8\% and 16\%, with PSM as a consistent positive outlier for all of them. This 
 reveals that, despite their differing F1 profiles, these models perform similarly poorly in 
 terms of threshold-independent detection quality across most datasets. TranAD is a clear 
-exception: its interquartile range spans approximately 16\% to 50\%, and its SWaT AU-PR of 
-73.66\% appears as a high outlier, driving both its superior average AU-PR and the large 
-variance in its distribution. Notably, Anomaly Transformer's SMD AU-PR (4.45\%) appears as a 
-strong negative outlier, highlighting that its high F1 on that dataset is highly sensitive to 
-threshold choice. Taken together, the two plots suggest that high point-adjusted F1 and high 
-AU-PR are not interchangeable: a model can rank first on F1 while performing near the bottom 
-on AU-PR, reinforcing the importance of reporting both metrics \citep{darban2024survey}.
+exception: its points are widely spread from approximately 10\% to 74\%, with its SWaT AU-PR 
+of 73.66\% standing far above all other results, driving both its superior average AU-PR and 
+the large variance visible in the plot. Notably, Anomaly Transformer's SMD AU-PR (4.45\%) 
+sits far below its other results, highlighting that its high F1 on that dataset is highly 
+sensitive to threshold choice. Taken together, the two plots suggest that high point-adjusted 
+F1 and high AU-PR are not interchangeable: a model can rank first on F1 while performing near 
+the bottom on AU-PR, reinforcing the importance of reporting both metrics \citep{darban2024survey}.
 
 \subsubsection{What's behind TranAD's high AU-PR on SWaT}
 Figure~\ref{fig:pr_tranad_swat} shows the precision-recall curve for TranAD on the SWaT dataset and the no-skill baseline.
