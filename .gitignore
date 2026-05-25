@@ -1,7 +1,11 @@
 .DS_Store
 
 #datasets
-datasets/
+datasets/MSL
+datasets/PSM
+datasets/SMAP
+datasets/SMD
+datasets/SWaT
 
 test_results/
 analysis_plots/
