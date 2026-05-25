@@ -53,6 +53,8 @@ MANUAL_JITTER = {
     (1, 0): 0.08,   # ModernTCN, SMD → shift right
     (3, 1): 0.08,   # Anomaly Transformer, MSL → shift right
     (4, 1): 0.08,   # GTA, MSL → shift right
+    (0, 2): 0.08,   # TimesNet, SMAP → shift right
+    (1, 2): 0.08,   # ModernTCN, SMAP → shift right
 }
 
 fig2, ax2 = plt.subplots(figsize=(10, 6))
