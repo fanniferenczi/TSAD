@@ -37,7 +37,7 @@ for name, cfg in DATASETS.items():
     # ── Peak training (full minimax step) ────────────────────────────────
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    x = torch.randn(128, 100, enc_in, device=device)
+    x = torch.randn(64, 100, enc_in, device=device)
     criterion = nn.MSELoss()
 
     torch.cuda.empty_cache()
@@ -85,7 +85,7 @@ for name, cfg in DATASETS.items():
 lines = []
 lines.append(f"Run: {datetime.now(tz=timezone(timedelta(hours=2))).strftime('%Y-%m-%d %H:%M:%S')}")
 lines.append('=' * 95)
-lines.append("MEMORY SUMMARY — AnomalyTransformer (batch_size=128)")
+lines.append("MEMORY SUMMARY — AnomalyTransformer (batch_size=64)")
 lines.append('=' * 95)
 lines.append(f"{'Dataset':<8} {'Params':>12} {'Params MB':>10} {'GPU alloc':>10} {'Peak train':>12} {'Overhead':>10} {'Peak infer':>12}")
 lines.append('-' * 95)

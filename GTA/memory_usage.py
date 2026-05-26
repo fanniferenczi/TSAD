@@ -4,7 +4,7 @@ sys.path.insert(0, './GTA')
 
 from models.gta import GTA
 
-device = torch.device("cuda:3")  # adjust to your available GPU
+device = torch.device("cuda:0")  # adjust to your available GPU
 
 # Force CUDA context once before measurements
 _ = torch.zeros(1).to(device)

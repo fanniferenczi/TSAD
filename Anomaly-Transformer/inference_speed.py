@@ -16,7 +16,7 @@ DATASETS = {
     'PSM':   dict(enc_in=25, seq_len=100),
 }
 
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 N_RUNS     = 100   # number of timed iterations (matches ModernTCN)
 N_WARMUP   = 10    # warmup runs to stabilize GPU clock and cuDNN
 

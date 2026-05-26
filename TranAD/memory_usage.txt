@@ -1,4 +1,4 @@
-Run: 2026-05-22 18:08:25
+Run: 2026-05-26 11:17:12
 ===============================================================================================
 MEMORY SUMMARY - TranAD Anomaly Detection (batch_size=128)
 ===============================================================================================
@@ -14,9 +14,9 @@ PSM          57,273          0.46 MB       0.46 MB       1.20 MB       0.74 MB  
 ── Verification 1: independent weight size check ──────────────────
   SMD      A(numel×bytes)=1.020MB  B(serialized)=1.040MB  C(storage)=1.020MB
   MSL      A(numel×bytes)=2.090MB  B(serialized)=2.112MB  C(storage)=2.090MB
-  SMAP     A(numel×bytes)=0.458MB  B(serialized)=0.476MB  C(storage)=0.458MB
-  SWaT     A(numel×bytes)=1.804MB  B(serialized)=1.826MB  C(storage)=1.804MB
-  PSM      A(numel×bytes)=0.458MB  B(serialized)=0.476MB  C(storage)=0.458MB
+  SMAP     A(numel×bytes)=0.458MB  B(serialized)=0.475MB  C(storage)=0.458MB
+  SWaT     A(numel×bytes)=1.804MB  B(serialized)=1.825MB  C(storage)=1.804MB
+  PSM      A(numel×bytes)=0.458MB  B(serialized)=0.475MB  C(storage)=0.458MB
 
 ── Verification 2: overhead decomposition ─────────────────────────
   Dataset     input   output    grads      sum   overhead match?
