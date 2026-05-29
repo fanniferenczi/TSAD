@@ -339,4 +339,10 @@ class Exp_GTA_DAD(Exp_Basic):
         results_dict = {'precision': best_prec, 'recall': best_rec, 'f1': best_f1, 'threshold': best_thresh, 'auc_raw': auc_raw, 'aupr': aupr}
         print('Anomaly detection results:', results_dict)
 
+         # ── save raw scores & labels for PR curve (cwd, matches TranAD convention) ──
+        np.save(f'scores_GTA_{self.args.data}_loss.npy', anomaly_scores)
+        np.save(f'scores_GTA_{self.args.data}_labels.npy', anomaly_labels)
+        print(f"Saved raw scores and labels for PR curve ({self.args.data})")
+        # ──────────────────────────────────────────────────────────────────────
+
         return

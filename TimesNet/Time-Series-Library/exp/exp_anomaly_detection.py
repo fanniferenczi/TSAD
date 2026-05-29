@@ -231,6 +231,12 @@ class Exp_Anomaly_Detection(Exp_Basic):
             aupr = float('nan')
             print("AU-PR: undefined (only one class in ground truth)")
 
+        # ── save raw scores & labels for PR curve (BEFORE point-adjust) ──────────
+        np.save(os.path.join(folder_path, f'scores_TimesNet_{self.args.data}_loss.npy'), test_energy)
+        np.save(os.path.join(folder_path, f'scores_TimesNet_{self.args.data}_labels.npy'), gt)
+        print(f"Saved raw scores and labels for PR curve ({self.args.data})")
+        # ─────────────────────────────────────────────────────────────────────────
+
         # (5) detection adjustment
         gt, pred = adjustment(gt, pred)
 

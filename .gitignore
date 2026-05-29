@@ -9,3 +9,8 @@ datasets/SWaT
 
 test_results/
 analysis_plots/
+
+# score files
+**/scores_*.npy
+
+

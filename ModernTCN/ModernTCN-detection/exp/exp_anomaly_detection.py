@@ -216,6 +216,12 @@ class Exp_Anomaly_Detection(Exp_Basic):
         # step_size.npy is always seq_len — arrays are stored in raw time space
         np.save(os.path.join(folder_path, 'step_size.npy'), np.array([seq_len]))
 
+         # ── save raw scores & labels for PR curve (BEFORE point-adjust) ──
+        np.save(os.path.join(folder_path, f'scores_ModernTCN_{self.args.data}_loss.npy'), test_energy)
+        np.save(os.path.join(folder_path, f'scores_ModernTCN_{self.args.data}_labels.npy'), test_labels)
+        print(f"Saved raw scores and labels for PR curve ({self.args.data})")
+        # ─────────────────────────────────────────────────────────────────
+
         # (4) detection adjustment
         gt, pred = adjustment(gt, pred)
 

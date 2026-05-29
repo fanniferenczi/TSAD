@@ -333,6 +333,12 @@ class Solver(object):
 
         gt = test_labels.astype(int)
 
+         # ── save raw scores & labels for PR curve (BEFORE point-adjust) ──
+        np.save(f'scores_AnomalyTransformer_{self.dataset}_loss.npy', test_energy)
+        np.save(f'scores_AnomalyTransformer_{self.dataset}_labels.npy', test_labels)
+        print(f"Saved raw scores and labels for PR curve ({self.dataset})")
+        # ─────────────────────────────────────────────────────────────────
+
         print("pred:   ", pred.shape)
         print("gt:     ", gt.shape)
 
