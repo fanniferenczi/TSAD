@@ -1361,28 +1361,28 @@ between F1 and AU-PR highlights the sensitivity of point-adjusted F1 to threshol
 threshold-independent measure of detection quality \citep{darban2024survey}.
 
 
-Figure~\ref{fig:f1_stripplot} and Figure~\ref{fig:aupr_stripplot} complement the per-dataset results in 
+Figure~\ref{fig:f1_barchart} and Figure~\ref{fig:aupr_barchart} complement the per-dataset results in 
 Table~\ref{tab:accuracy} by visualising the distribution of F1 and AU-PR scores across datasets for 
 each model, making consistency and variance across benchmarks directly comparable.
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=\textwidth]{f1_stripplot_by_model.png}
+    \includegraphics[width=\textwidth]{f1_barchart_by_model.png}
     \caption{F1 score distribution per model across the five benchmark datasets under the 
-    point-adjust evaluation protocol. Each marker represents a single dataset result.}
-    \label{fig:f1_stripplot}
+    point-adjust evaluation protocol. Each bar represents a single dataset result.}
+    \label{fig:f1_barchart}
 \end{figure}
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=\textwidth]{aupr_stripplot_by_model.png}
+    \includegraphics[width=\textwidth]{aupr_barchart_by_model.png}
     \caption{AU-PR distribution per model across the five benchmark datasets. 
-    Each marker represents a single dataset result.}
-    \label{fig:aupr_stripplot}
+    Each bar represents a single dataset result.}
+    \label{fig:aupr_barchart}
 \end{figure}
 
-The F1 strip plot reveals that Anomaly Transformer achieves the highest scores and the most 
-consistent performance across datasets, with its points tightly clustered between 92\% and 97\%. 
+The F1 bar chart reveals that Anomaly Transformer achieves the highest scores and the most 
+consistent performance across datasets, with its bars tightly clustered between 92\% and 97\%. 
 TranAD shows a wider spread, reflecting its strong performance on SMD and MSL contrasted with 
 a notably lower F1 on SWaT (81.43\%). TimesNet and ModernTCN exhibit very similar profiles, 
 both characterised by wide spread driven by their weak performance on SMAP (68.47\% and 
@@ -1390,12 +1390,12 @@ both characterised by wide spread driven by their weak performance on SMAP (68.4
 relatively compact spread with high scores on most datasets, though it similarly struggles on 
 SMAP (76.00\%), while its PSM result (96.41\%) sits at the upper end.
 
-The AU-PR strip plot tells a strikingly different story. Four of the five models --- TimesNet, 
-ModernTCN, Anomaly Transformer, and GTA --- have their points tightly clustered between 
+The AU-PR bar chart tells a strikingly different story. Four of the five models --- TimesNet, 
+ModernTCN, Anomaly Transformer, and GTA --- have their bars tightly clustered between 
 roughly 8\% and 16\%, with PSM as a consistent positive outlier for all of them. This 
 reveals that, despite their differing F1 profiles, these models perform similarly poorly in 
 terms of threshold-independent detection quality across most datasets. TranAD is a clear 
-exception: its points are widely spread from approximately 10\% to 74\%, with its SWaT AU-PR 
+exception: its bars are widely spread from approximately 10\% to 74\%, with its SWaT AU-PR 
 of 73.66\% standing far above all other results, driving both its superior average AU-PR and 
 the large variance visible in the plot. Notably, Anomaly Transformer's SMD AU-PR (4.45\%) 
 sits far below its other results, highlighting that its high F1 on that dataset is highly 
@@ -1404,14 +1404,15 @@ F1 and high AU-PR are not interchangeable: a model can rank first on F1 while pe
 the bottom on AU-PR, reinforcing the importance of reporting both metrics \citep{darban2024survey}.
 
 \subsubsection{What's behind TranAD's high AU-PR on SWaT}
-Figure~\ref{fig:pr_tranad_swat} shows the precision-recall curve for TranAD on the SWaT dataset and the no-skill baseline.
+Figure~\ref{fig:pr_all_swat} shows the precision-recall curves for all five models on the 
+SWaT dataset alongside the no-skill baseline.
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=\textwidth]{pr_curve_TranAD_SWaT.png}
-    \caption{Precision-recall curve for TranAD on SWaT. The dashed line indicates
-    the no-skill baseline equal to the dataset's anomaly rate (12.9\%).}
-    \label{fig:pr_tranad_swat}
+    \includegraphics[width=\textwidth]{pr_curves_all_SWaT.png}
+    \caption{Precision-recall curves for all five models on SWaT. The dashed line 
+    indicates the no-skill baseline equal to the dataset's anomaly rate (12.9\%).}
+    \label{fig:pr_all_swat}
 \end{figure}
 
 A precision-recall curve is constructed by sweeping the anomaly score threshold from its highest 
@@ -1439,6 +1440,16 @@ which the threshold crosses into regions where normal and anomalous score distri
 to overlap, causing precision to collapse rapidly. Beyond recall 0.65, the curve descends 
 gradually towards the baseline, indicating that recovering the remaining anomalous points 
 requires accepting a large number of false positives.
+
+In contrast, TimesNet (AP = 0.108), ModernTCN (AP = 0.096), Anomaly Transformer 
+(AP = 0.111), and GTA (AP = 0.075) all collapse towards or below the no-skill baseline almost 
+immediately, their curves indistinguishable from a random classifier across most of the recall 
+range. This confirms that for these four models, any threshold that recovers a meaningful 
+fraction of anomalies does so at the cost of flagging nearly as many normal points. TranAD's 
+AP of 0.731 therefore does not just represent a quantitative improvement --- it reflects a 
+qualitatively different level of score separability on this dataset, further reinforcing why 
+AU-PR exposes differences between models that point-adjusted F1 alone would conceal 
+\citep{darban2024survey}.
 
 
 \paragraph{Confusion Matrix.}
