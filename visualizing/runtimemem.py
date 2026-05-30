@@ -1,0 +1,106 @@
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import matplotlib.ticker as ticker
+import numpy as np
+
+# ── Data ──────────────────────────────────────────────────────────────────────
+models = ['TimesNet', 'ModernTCN', 'TranAD', 'AnomTr.', 'GTA']
+datasets = ['SMD', 'MSL', 'SMAP', 'SWaT', 'PSM']
+
+train = np.array([
+    [408.97,  410.13,  215.64,  411.52,  212.66],
+    [470.28,  669.29,  176.75,  623.31,  176.80],
+    [  2.47,    4.81,    1.20,    4.19,    1.20],
+    [4228.20, 4351.70, 4346.71, 4350.73, 4346.66],
+    [777.10, 1178.96,  616.12, 1019.17,  617.59],
+])
+
+infer = np.array([
+    [295.39,  296.63,  104.74,  296.63,  105.66],
+    [188.19,  264.98,   79.37,  247.19,   79.92],
+    [  1.45,    2.72,    0.74,    2.39,    0.74],
+    [3027.15, 3151.52, 3144.19, 3150.69, 3144.19],
+    [761.22, 1162.69,  600.46, 1003.01,  601.94],
+])
+
+colors = ['#4C72B0', '#DD8452', '#55A868', '#C44E52', '#8172B2']
+
+n_models   = len(models)
+n_datasets = len(datasets)
+
+bar_width     = 0.13
+group_gap     = 0.3
+cluster_width = n_models * bar_width
+group_centers = np.arange(n_datasets) * (cluster_width + group_gap)
+
+# ── Plot ──────────────────────────────────────────────────────────────────────
+fig, ax = plt.subplots(figsize=(15, 6))
+
+for i, (model, color) in enumerate(zip(models, colors)):
+    offsets = group_centers + i * bar_width - cluster_width / 2 + bar_width / 2
+
+    # Training bar — faded, full width
+    ax.bar(offsets, train[i], width=bar_width,
+           color=color, alpha=0.25)
+
+    # Inference bar — solid, slightly narrower
+    ax.bar(offsets, infer[i], width=bar_width * 0.65,
+           color=color, alpha=0.9, label=model)
+
+    # Annotate drop % just above each inference bar
+    for j in range(n_datasets):
+        drop_pct = (1 - infer[i, j] / train[i, j]) * 100
+        ax.text(offsets[j], infer[i, j] * 1.15,
+                f'−{drop_pct:.0f}%',
+                ha='center', va='bottom',
+                fontsize=5.5, color=color, alpha=0.85,
+                rotation=90)
+
+# ── Log scale y-axis ──────────────────────────────────────────────────────────
+ax.set_yscale('log')
+ax.yaxis.set_major_formatter(ticker.FuncFormatter(
+    lambda val, _: f'{val:,.0f}' if val >= 1 else f'{val:.1f}'
+))
+ax.yaxis.set_major_locator(ticker.LogLocator(base=10, numticks=10))
+ax.yaxis.set_minor_locator(ticker.LogLocator(base=10, subs=np.arange(2, 10) * 0.1,
+                                              numticks=20))
+ax.yaxis.set_minor_formatter(ticker.NullFormatter())
+ax.set_ylabel('Memory (MB, log scale)', fontsize=11)
+ax.set_ylim(0.5, 8000)
+
+# ── Reference lines ───────────────────────────────────────────────────────────
+for ref_mb, label in [(1, '1 MB'), (10, '10 MB'),
+                       (100, '100 MB'), (1000, '1,000 MB'), (4000, '4,000 MB')]:
+    ax.axhline(ref_mb, color='grey', linewidth=0.5, linestyle='--', alpha=0.4)
+    ax.text(group_centers[-1] + cluster_width / 2 + 0.05,
+            ref_mb, label,
+            va='center', fontsize=7, color='grey', alpha=0.7)
+
+# ── x-axis ────────────────────────────────────────────────────────────────────
+ax.set_xticks(group_centers)
+ax.set_xticklabels(datasets, fontsize=11)
+ax.set_xlabel('Dataset', fontsize=11)
+ax.set_xlim(group_centers[0] - cluster_width,
+            group_centers[-1] + cluster_width + 0.4)
+
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.grid(axis='y', which='major', linestyle='--', alpha=0.2)
+
+# ── Legend ────────────────────────────────────────────────────────────────────
+model_handles = [mpatches.Patch(color=c, alpha=0.9, label=m)
+                 for m, c in zip(models, colors)]
+train_patch = mpatches.Patch(color='grey', alpha=0.25,
+                              label='Peak training memory (faded)')
+infer_patch = mpatches.Patch(color='grey', alpha=0.9,
+                              label='Peak inference memory (solid)')
+
+ax.legend(handles=model_handles + [train_patch, infer_patch],
+          loc='upper right', fontsize=8.5, frameon=False, ncol=2)
+
+ax.set_title('Peak Training vs. Inference Memory per Model and Dataset',
+             fontsize=13, fontweight='bold', pad=12)
+
+plt.tight_layout()
+plt.savefig('runtime_memory_logscale.png', bbox_inches='tight', dpi=300)
+plt.show()

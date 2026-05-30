@@ -25,6 +25,10 @@
 \usepackage{multirow}
 \usepackage{makecell}
 \usepackage{soul}
+\usepackage{siunitx}   % add to preamble if not already present
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{makecell}
 
 \renewcommand*\sfdefault{lmss}
 \renewcommand*\ttdefault{txtt}
@@ -1119,10 +1123,14 @@ interpreted as lower bounds on the true per-forward-pass cost, suitable for rela
 cross-model comparison rather than absolute throughput estimation.
 
 \subsection{Memory Usage}
+\label{subsec:memory}
 
 Memory footprint is a critical constraint for IoT edge deployment, where devices
 operate under strict memory budgets. Five memory-related metrics are reported for each model in this thesis,
-each capturing a different aspect of the model's memory demand.
+each capturing a different aspect of the model's memory demand. One model requires special 
+treatment throughout: TranAD's original codebase hardcodes execution to the CPU via explicit 
+\texttt{.cpu()} calls \citep{tranad2022}, meaning all its memory figures are measured from 
+CPU RAM rather than GPU VRAM.
 
 \paragraph{Parameter count.}
 The parameter count is the total number of individually learnable scalar values in
@@ -1133,24 +1141,29 @@ generally cheaper to store and transfer, and is more likely to fit within the fl
 or RAM constraints of an edge device.
 
 \paragraph{Weight memory (exact).}
-The weight memory is the parameter count multiplied by the number of bytes per
-value. All models in this thesis are evaluated in 32-bit floating-point precision,
-so this quantity equals $\mathrm{Params} \times 4\ \mathrm{bytes}$. This represents
-the minimum memory required to hold the trained model in memory and is the most
-direct measure of the storage cost of deploying a model.
+The exact weight memory is the parameter count multiplied by the number of bytes per
+value, and is hardware-independent. For TimesNet, ModernTCN, and Anomaly Transformer, 
+which operate in \texttt{float32}, this equals $\mathrm{Params} \times 4\ \mathrm{bytes}$. 
+TranAD and GTA both operate in \texttt{float64} at runtime, so their exact weight memory is computed as 
+$\mathrm{Params} \times 8\ \mathrm{bytes}$. This represents the minimum memory required 
+to hold the trained model and is the most direct measure of storage cost for deployment.
 
-\paragraph{Weight memory (GPU allocated).}
-The GPU-allocated weight memory is the amount of memory the runtime actually
+\paragraph{Weight memory (allocated).}
+The allocated weight memory is the amount of memory the runtime actually
 reserves for the model's parameters, as reported by PyTorch's memory allocator. This
 value can exceed the exact weight memory because PyTorch allocates memory in blocks
 and may also include persistent buffers that are part of the model's state but are not updated by
-gradient descent.
+gradient descent. For TimesNet, ModernTCN, Anomaly Transformer, and GTA 
+this is measured from GPU VRAM via PyTorch's GPU memory tracker. For TranAD, it is 
+measured from CPU RAM via the CPU memory allocator.
 
 \paragraph{Peak training memory.}
 The peak training memory is the maximum GPU memory occupied at any point during a
 training forward-backward pass. It is substantially larger than the inference memory
 because during backpropagation PyTorch must retain all intermediate activations
 produced during the forward pass in order to compute gradients.
+For all models except TranAD, this is measured in GPU VRAM. For TranAD, it is measured 
+in CPU RAM, reflecting its CPU-only execution.
 
 \paragraph{Peak inference memory.}
 The peak inference memory is the maximum GPU memory occupied during a forward pass
@@ -1163,7 +1176,9 @@ the backward pass computes gradients via the chain rule, and each layer's gradie
 on the activations produced by that layer during the forward pass. At inference time, 
 however, no such graph is needed: activations can be discarded immediately after each 
 layer has produced its output, which is why peak inference memory is substantially lower 
-than peak training memory.
+than peak training memory. As with peak training 
+memory, this figure is measured in GPU VRAM for all models except TranAD, for which it 
+reflects CPU RAM.
 
 \paragraph{Memory overhead.}
 The memory overhead is defined as the difference between the peak training memory
@@ -1175,7 +1190,8 @@ It quantifies everything that is not the model weights themselves: temporary ten
 intermediate activations, gradient buffers, and other bookkeeping structures that
 PyTorch allocates during a training step. A large overhead relative to the weight
 memory indicates that the model's training cost is dominated by the computation graph
-rather than by the number of parameters.
+rather than by the number of parameters. For TranAD, the overhead is computed from 
+CPU RAM measurements and should be interpreted accordingly.
 
 
 \subsection{Inference Speed}
@@ -1475,18 +1491,466 @@ fully detected \citep{su2019smd}, which substantially changes the effective reca
 why the PA F1 reported in Table~\ref{tab:accuracy} is considerably higher than these raw counts 
 would suggest.
 
-\subsubsection{TODO: What type of anomalies were detected by each model? why?}
 
-\subsection{TODO: Memory Usage}
+
+\subsection{Memory Usage}
+
+For IoT edge deployment, memory is often the 
+binding constraint: microcontrollers and low-power embedded processors typically operate under 
+RAM budgets of a few megabytes, and a model that fits comfortably on a server-grade GPU may 
+be entirely impractical on constrained hardware \citep{wang2025optimizing}. The five memory 
+metrics introduced in Section~\ref{subsec:memory} --- parameter count, exact weight memory, 
+GPU-allocated weight memory, peak training memory, and peak inference memory --- capture 
+different aspects of this footprint, from the minimum cost of storing a trained model to the 
+maximum memory demand placed on the device during a forward pass.
+
+To investigate whether these footprints translate into genuine deployment constraints, 
+experiments were conducted in two distinct hardware environments. The first is a standard 
+server setup equipped with a GPU, representative of the training and development environment 
+in which all five models were originally designed and evaluated. The second is a resource-constrained 
+edge device, representative of the target deployment scenario considered throughout this thesis. 
+Comparing memory usage across these two environments reveals not only how the absolute footprints 
+differ between architectures, but also whether a model's memory demand is feasible in the 
+setting where anomaly detection is ultimately intended to run.
+
+An important distinction is made between training and inference memory throughout this section. 
+As described in Section~\ref{subsec:memory}, peak training memory includes the full 
+computational graph retained by PyTorch for backpropagation, while peak inference memory 
+reflects only what is needed during a forward pass. Since edge deployment involves inference 
+only the 
+peak inference memory and the exact weight memory are the operationally relevant figures for 
+assessing deployability. Peak training memory is reported as a complementary indicator of 
+the overhead imposed by the computation graph, which is relevant when evaluating whether a 
+model could realistically be fine-tuned or retrained on-device in the future.
+
+An important methodological difference must be noted 
+for TranAD. Inspection of the original codebase reveals that TranAD's training and inference 
+routines hardcode execution to the CPU via explicit \texttt{.cpu()} calls, meaning the model 
+never utilises a GPU even when one is available \citep{tranad2022}. As a consequence, 
+\textit{all} memory figures reported for 
+TranAD in Tables~\ref{tab:memory_static_server} and~\ref{tab:memory_runtime_server} reflect 
+CPU RAM rather than GPU VRAM: this applies not only to the runtime metrics --- peak training 
+memory, peak inference memory, and overhead --- but also to the allocated weight memory 
+(W\textsubscript{alloc}), which is measured from the CPU memory allocator rather than 
+PyTorch's GPU memory tracker used for all other models. The exact weight memory 
+(W\textsubscript{ex}), computed analytically as parameter count multiplied by bytes per 
+element, is hardware-independent and comparable across models.
+
+TranAD and GTA both operate 
+in \texttt{float64} (double precision) at runtime, meaning each parameter occupies 
+8\,bytes rather than the 4\,bytes of \texttt{float32}. The exact weight memory 
+(W\textsubscript{ex}) is therefore computed as parameter count $\times$ 8\,B for TranAD 
+and GTA, and parameter count $\times$ 4\,B for TimesNet, ModernTCN, and Anomaly Transformer. 
+This must be taken into account when comparing parameter counts to weight memory across 
+models: a model with fewer parameters can nonetheless have a larger storage footprint if it 
+operates in double precision.
+
+\subsubsection{Static Memory Footprint}
+\label{subsubsec:static_memory}
+
+\begin{table}[ht]
+\centering
+\caption{Static memory footprint per model across five benchmark datasets (server environment).
+\textit{Params} is the total parameter count;
+W\textsubscript{ex} = exact weight memory, computed as params $\times$ 4\,B for 
+TimesNet, ModernTCN, and Anomaly Transformer (\texttt{float32}), and params $\times$ 8\,B 
+for TranAD$^\dagger$ and GTA (\texttt{float64});
+W\textsubscript{alloc} = allocated weight memory, measured from GPU VRAM for all models 
+except TranAD$^\dagger$, for which it reflects CPU RAM.
+All memory values in MB.
+Lowest value per row in \textbf{bold}, second-lowest \underline{underlined}.}
+\label{tab:memory_static_server}
+\begin{tabular}{ll rrrrr}
+\toprule
+\textbf{Dataset} & \textbf{Metric} $\downarrow$
+    & \thead{\textbf{TimesNet}\\\citep{timesnet2023}}
+    & \thead{\textbf{ModTCN}\\\citep{moderntcn2024}}
+    & \thead{\textbf{TranAD}$^\dagger$\\\citep{tranad2022}}
+    & \thead{\textbf{AnomTr.}\\\citep{anomalytransformer2022}}
+    & \thead{\textbf{GTA}\\\citep{gta2022}} \\
+\midrule
+\multirow{3}{*}{SMD}
+    & Params             & 7{,}041{,}190 & \underline{653{,}000} & \textbf{127{,}538} & 4{,}828{,}222 & 797{,}450 \\
+    & W\textsubscript{ex}  &  28.16 & \underline{2.61} & \textbf{1.02} & 18.42 &  6.08 \\
+    & W\textsubscript{alloc}$^\dagger$ &  30.44 & \underline{2.65} & \textbf{1.03} & 28.77 & 15.88 \\
+\midrule
+\multirow{3}{*}{MSL}
+    & Params             & 7{,}045{,}559 & 1{,}064{,}264 & \textbf{261{,}243} & 4{,}863{,}055 & \underline{844{,}523} \\
+    & W\textsubscript{ex}  &  28.28 & \underline{4.26} & \textbf{2.09} & 18.55 &  6.44 \\
+    & W\textsubscript{alloc}$^\dagger$ &  30.46 & \underline{4.32} & \textbf{2.10} & 28.90 & 16.26 \\
+\midrule
+\multirow{3}{*}{SMAP}
+    & Params             & 1{,}761{,}753 & \underline{143{,}01} & \textbf{57{,}273} & 4{,}801{,}585 & 769{,}253 \\
+    & W\textsubscript{ex}  & 7.05 &  \underline{0.57} & \textbf{0.46} & 18.32 &  5.87 \\
+    & W\textsubscript{alloc}$^\dagger$ &  7.70 &  \underline{0.59} & \textbf{0.46} & 28.67 & 15.66 \\
+\midrule
+\multirow{3}{*}{SWaT}
+    & Params             & 7{,}044{,}531 & 960{,}840 & \textbf{225{,}519} & 4{,}854{,}859 & \underline{832{,}407} \\
+    & W\textsubscript{ex}  &  28.18 & \underline{3.84} & \textbf{1.80} & 18.52 &  6.35 \\
+    & W\textsubscript{alloc}$^\dagger$ &  30.45 & \underline{3.90} & \textbf{1.81} & 28.87 & 16.16 \\
+\midrule
+\multirow{3}{*}{PSM}
+    & Params             & 1{,}761{,}753 & \underline{143{,}016} & \textbf{57{,}273} & 4{,}801{,}585 & 769{,}253 \\
+    & W\textsubscript{ex}  &  7.05 &  \underline{0.57} & \textbf{0.46} & 18.32 &  5.87 \\
+    & W\textsubscript{alloc}$^\dagger$ &  7.70 &  \underline{0.59} & \textbf{0.46} & 28.67 & 15.66 \\
+\midrule
+\multirow{3}{*}{Average}
+    & Params             & 4{,}930{,}957 & \underline{592{,}827} & \textbf{145{,}769} & 4{,}829{,}861 & 802{,}577 \\
+    & W\textsubscript{ex}  &  19.74 & \underline{2.37} & \textbf{1.17} & 18.43 &  6.12 \\
+    & W\textsubscript{alloc}$^\dagger$ &  21.35 & \underline{2.41} & \textbf{1.17} & 28.78 & 15.92 \\
+\bottomrule
+\multicolumn{7}{l}{\footnotesize $^\dagger$ TranAD executes on CPU; W\textsubscript{alloc} reflects CPU-allocated weight memory for TranAD,}\\
+\multicolumn{7}{l}{\footnotesize \phantom{$^\dagger$} GPU-allocated weight memory for all other models.}
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:memory_static_server} reveals a clear separation between models in terms 
+of static memory footprint. TranAD \citep{tranad2022} is the most parameter-efficient 
+model across all datasets, with an average of 145{,}769 parameters and an exact weight 
+memory of just 1.17\,MB --- more than an order of magnitude smaller than any other model. 
+At the opposite extreme, TimesNet \citep{timesnet2023} and Anomaly Transformer 
+\citep{anomalytransformer2022} are the heaviest models, with average parameter counts of 
+approximately 4.9M and 4.8M respectively, translating to exact weight memories of 19.74\,MB 
+and 18.43\,MB. ModernTCN \citep{moderntcn2024} is the second lightest model with an average of 
+592{,}827 parameters and 2.37\,MB, closely behind TranAD. GTA \citep{gta2022} sits 
+in the middle of the ranking at 6.12\,MB on average, with its \texttt{float64} precision 
+resulting in a higher storage cost than its parameter count alone would suggest. 
+
+The allocated weight memory (W\textsubscript{alloc}) closely tracks W\textsubscript{ex} 
+for TranAD, TimesNet, and ModernTCN, with small differences attributable to PyTorch's 
+block-based memory allocator and persistent buffers. GTA and Anomaly Transformer both 
+show a consistent gap of approximately 10\,MB between W\textsubscript{ex} and 
+W\textsubscript{alloc} across all datasets. For GTA, this gap is particularly striking 
+in relative terms --- W\textsubscript{alloc} is roughly 2.6$\times$ larger than 
+W\textsubscript{ex} --- suggesting that GTA's architecture retains a substantial amount 
+of non-parameter state, such as the learned adjacency matrix used for graph structure 
+learning \citep{gta2022}, that is allocated as part of the model but does not contribute 
+to the parameter count. For Anomaly Transformer the relative gap is smaller (roughly 
+1.6$\times$), but the absolute difference is the same, pointing to a similar phenomenon 
+of persistent architecture-specific buffers beyond the learnable weights.
+
+From a pure storage perspective, TranAD and ModernTCN are the strongest candidates for 
+edge deployment: both fit well within the RAM constraints of low-power embedded devices, 
+with TranAD's 1.17\,MB and ModernTCN's 2.37\,MB sitting comfortably below the memory 
+budgets of even relatively constrained hardware. TimesNet and Anomaly Transformer, at 
+roughly 21--28\,MB depending on the dataset, remain feasible on more capable edge 
+platforms. GTA's inflated W\textsubscript{alloc} of approximately 
+16\,MB makes it heavier than its parameter count alone would suggest, which is a relevant 
+consideration when estimating its true storage cost on a constrained device.
+
+As shown in Figure~\ref{fig:memory_alloc_variability}, TimesNet \citep{timesnet2023} 
+exhibits by far the highest variability in allocated weight memory across datasets, 
+with its dots spanning from 7.70\,MB on SMAP and PSM to 30.46\,MB on SMD, MSL, and SWaT. 
+All other models show comparatively tight clustering: 
+Anomaly Transformer's dots are nearly indistinguishable at 28.67--28.90\,MB, GTA 
+spans 15.66--16.26\,MB. While TranAD and ModernTCN do vary across datasets, their spread 
+is proportionally small.
+
+This variability in TimesNet is not a random artefact but a direct consequence of 
+an explicit architectural design choice. TimesNet sets its internal hidden dimension 
+$d_\text{model}$ as a function of the input dimensionality $C$:
+\begin{equation}
+    d_\text{model} = \min\!\left\{\max\!\left\{2^{\lceil \log C \rceil},\, 
+    d_\text{min}\right\},\, d_\text{max}\right\}
+    \label{eq:timesnet_dmodel}
+\end{equation}
+where $d_\text{min} = 32$ and $d_\text{max} = 128$ for anomaly detection 
+\citep{timesnet2023}. Among the five benchmark datasets, SMAP and PSM both have 
+25 dimensions, mapping to $d_\text{model} = 32$, while SMD (38), MSL (55), and 
+SWaT (51) all map to $d_\text{model} = 64$. The hidden dimension $d_\text{model}$ 
+controls the width of every layer in the network --- that is, how many features 
+each layer processes internally. Most weight matrices in a neural network have 
+dimensions that are proportional to $d_\text{model}$, so when $d_\text{model}$ 
+doubles from 32 to 64, the number of parameters in each such matrix grows by a 
+factor of $64^2 / 32^2 = 4$, since both the input and output sides of the matrix 
+scale together. This is why halving $d_\text{model}$ reduces the total parameter 
+count by approximately four rather than two.
+
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{memory_alloc_variability.png}
+    \caption{Allocated weight memory variability across datasets for each model.
+    Each dot represents one dataset; the horizontal line spans the min--max range.}
+    \label{fig:memory_alloc_variability}
+\end{figure}
+
+The same input-adaptive scaling applies to ModernTCN \citep{moderntcn2024}, which 
+uses an identical formula to set its channel number $D$ --- also referred to as the 
+dimension of hidden states --- with $d_\text{min} = 8$ and $d_\text{max} = 256$ for 
+anomaly detection \citep{moderntcn2024}. This produces the same two-cluster pattern 
+visible in Figure~\ref{fig:memory_alloc_variability}: ModernTCN's allocated weight 
+memory spans from 0.59\,MB on SMAP and PSM ($D = 32$) to 4.32\,MB on MSL ($D = 64$). 
+However, because ModernTCN's architecture relies on 
+depthwise and grouped pointwise convolutions rather than the dense 2D inception blocks 
+used in TimesNet \citep{timesnet2023}, its absolute weight memory remains substantially 
+lower across all datasets --- averaging 2.37\,MB compared to TimesNet's 19.74\,MB. 
+This efficiency advantage is directly acknowledged by the ModernTCN authors, who note 
+that TimesNet's additional 2D data transformation and aggregation modules introduce 
+extra memory overhead and slower training speed, with ModernTCN saving approximately 
+57\% of average training time per epoch on anomaly detection benchmarks compared to 
+TimesNet \citep{moderntcn2024}. The allocated weight memory results in 
+Table~\ref{tab:memory_static_server} are consistent with this finding: despite sharing 
+the same input-adaptive scaling strategy, ModernTCN's parameter-efficient depthwise 
+convolution design translates directly into a smaller storage footprint at every 
+dataset, making it the more viable candidate for deployment on memory-constrained 
+edge devices among the two CNN-based models evaluated in this thesis.
+
+The near-perfect consistency of Anomaly Transformer's allocated weight memory across 
+datasets --- spanning only 28.67--28.90\,MB regardless of the input dimensionality --- 
+stands in sharp contrast to the behaviour of TimesNet and ModernTCN, and 
+is a direct consequence of how the model is parameterised. The Anomaly Transformer uses 
+a fixed hidden dimension of $d_\text{model} = 512$ with 
+$h = 8$ attention heads for all datasets \citep{anomalytransformer2022}, meaning the 
+internal width of the model does not adapt to the number of input dimensions. The input 
+dimensionality only influences two small layers: the embedding layer at the entrance, 
+which maps the raw $d$-dimensional observations into the fixed 512-dimensional space, 
+and the reconstruction head at the exit, which maps back. All the weight-heavy components 
+in between --- the query, key, value, and output projection matrices of each attention 
+head --- are completely independent of the input 
+dimensionality. This explains why the parameter count barely changes across datasets.
+
+Anomaly Transformer's 
+W\textsubscript{alloc} of approximately 28--29\,MB substantially exceeds its 
+W\textsubscript{ex} of approximately 18\,MB. The gap of roughly 10\,MB is attributable 
+to persistent buffers that are part of the model's state but are not learnable parameters: 
+most notably the Gaussian kernel prior-association matrix $P^l \in \mathbb{R}^{N \times N}$ 
+and the series-association matrix $S^l \in \mathbb{R}^{N \times N}$, which are computed 
+and retained across the $L = 3$ layers of the Anomaly-Attention mechanism 
+\citep{anomalytransformer2022}.
+The practical consequence for 
+edge deployment is that Anomaly Transformer's memory footprint is both large and 
+predictable: it will not shrink on low-dimensional datasets the way TimesNet and 
+ModernTCN do, making it fundamentally less adaptable to resource-constrained hardware 
+regardless of dimensionality.
+
+GTA's parameter count
+varies directly with input dimensionality through the learned
+adjacency matrix. GTA's connection learning policy \citep{gta2022} maintains a
+per-dataset probability matrix $\Pi \in \mathbb{R}^{M \times M}$, where $M$ is the
+number of sensors, to parameterise the Gumbel-Softmax sampling of directed edges among
+all sensor pairs. This matrix scales quadratically with the number of input features,
+meaning that datasets with more sensors --- such as SMD (38 features) and SWaT
+(51 features) --- result in a larger learnable graph structure than lower-dimensional
+datasets such as SMAP and PSM (25 features each). 
+
+The substantially larger W\textsubscript{alloc} relative to W\textsubscript{ex} reflects
+the fact that the learned adjacency matrix is retained as a persistent non-parameter
+buffer at runtime. For GTA, the adjacency matrix constitutes a significant
+portion of this allocated state: it is computed and held in memory throughout training
+and inference to support the Influence Propagation (IP) convolution, which aggregates
+neighbourhood information by propagating differences between sensor embeddings across
+the learned graph edges \citep{gta2022}. This buffer is architecture-specific and
+persistent --- it is not discarded between forward passes --- which explains why
+W\textsubscript{alloc} consistently exceeds W\textsubscript{ex} by a factor of
+approximately 2.6$\times$ regardless of dataset.
+
+From a deployment perspective, GTA's average W\textsubscript{alloc} of 15.92\,MB
+places it above both TranAD (1.17\,MB) and ModernTCN (2.37\,MB). Unlike TimesNet and
+ModernTCN, whose memory footprint shrinks meaningfully on lower-dimensional datasets, 
+GTA's reduction is modest:
+W\textsubscript{alloc} spans only 15.66--16.26\,MB across the five benchmark datasets.
+
+\subsubsection{Runtime Memory Footprint}
+\label{subsubsec:runtime_server}
+
+\begin{table}[ht]
+\centering
+\caption{Runtime memory footprint per model across five benchmark datasets (server environment), in MB.
+Train = peak training memory; Infer = peak inference memory;
+OH = overhead (peak training memory $-$ exact weight memory).
+TranAD executes on CPU; all other models execute on GPU. 
+Lowest value per row in \textbf{bold}, second-lowest \underline{underlined}.}
+\label{tab:memory_runtime_server}
+\begin{tabular}{ll rrrrr}
+\toprule
+\textbf{Dataset} & \textbf{Metric} $\downarrow$
+    & \thead{\textbf{TimesNet}\\\citep{timesnet2023}}
+    & \thead{\textbf{ModTCN}\\\citep{moderntcn2024}}
+    & \thead{\textbf{TranAD}$^\dagger$\\\citep{tranad2022}}
+    & \thead{\textbf{AnomTr.}\\\citep{anomalytransformer2022}}
+    & \thead{\textbf{GTA}\\\citep{gta2022}} \\
+\midrule
+\multirow{3}{*}{SMD}
+    & Train & \underline{408.97} & 470.28 &   \textbf{2.47} & 4228.20 &  777.10 \\
+    & Infer & 295.39 & \underline{188.19} &   \textbf{1.45} & 3027.15 &  761.22 \\
+    & OH    & 378.53 & 467.62 &   \textbf{1.45} & 4199.43 &  \underline{314.77} \\
+\midrule
+\multirow{3}{*}{MSL}
+    & Train & \underline{410.13} & 669.29 &   \textbf{4.81} & 4351.70 & 1178.96 \\
+    & Infer & 296.63 & \underline{264.98} &   \textbf{2.72} & 3151.52 & 1162.69 \\
+    & OH    & \underline{381.07} & 664.96 &   \textbf{1.45} & 4322.79 &  603.16 \\
+\midrule
+\multirow{3}{*}{SMAP}
+    & Train & 215.64 & \underline{176.75} &   \textbf{1.20} & 4346.71 &  616.12 \\
+    & Infer & 104.74 &  \underline{79.37} &   \textbf{0.74} & 3144.19 &  600.46 \\
+    & OH    & 207.93 & \underline{176.15} &   \textbf{0.74} & 4318.04 &  303.65 \\
+\midrule
+\multirow{3}{*}{SWaT}
+    & Train & \underline{411.52} & 623.31 &   \textbf{4.19} & 4350.73 & 1019.17 \\
+    & Infer & 296.63 & \underline{247.19} &   \textbf{2.39} & 3150.69 & 1003.01 \\
+    & OH    & \underline{381.07} & 619.41 &   \textbf{0.38} & 4321.86 &  522.51 \\
+\midrule
+\multirow{3}{*}{PSM}
+    & Train & 212.66 & \underline{176.80} &   \textbf{1.20} & 4346.66 &  617.59 \\
+    & Infer & 105.66 &  \underline{79.92} &   \textbf{0.74} & 3144.19 &  601.94 \\
+    & OH    & 204.96 & \underline{176.20} &   \textbf{0.74} & 4317.99 &  304.65 \\
+\midrule
+\multirow{3}{*}{Average}
+    & Train & \underline{331.78} & 423.29 &   \textbf{2.77} & 4324.80 &  841.79 \\
+    & Infer & 219.81 & \underline{171.93} &   \textbf{1.61} & 3123.55 &  825.86 \\
+    & OH    & \underline{310.71} & 420.87 &   \textbf{0.95} & 4296.02 &  409.75 \\
+\bottomrule
+\multicolumn{7}{l}{\footnotesize $^\dagger$ TranAD executes on CPU; memory measured in RAM rather than GPU VRAM.}
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:memory_runtime_server} reveals that Anomaly Transformer's runtime memory
+footprint is in a category of its own. At an average peak training memory of 4324.80\,MB
+and peak inference memory of 3123.55\,MB, it exceeds the next most memory-intensive
+model at inference --- GTA at 825.86\,MB --- by a factor of approximately 3.8$\times$,
+and the lightest GPU-resident model at inference --- ModernTCN at 171.93\,MB --- by
+nearly 18$\times$. This stands in sharp contrast to the static footprint analysis, where
+Anomaly Transformer's W\textsubscript{alloc} of approximately 28--29\,MB, while the
+largest among all models, did not suggest such an extreme runtime demand. The explanation
+lies in the quadratic scaling of the attention mechanism with respect to sequence length:
+the prior-association matrix $P^l \in \mathbb{R}^{N \times N}$ and series-association
+matrix $S^l \in \mathbb{R}^{N \times N}$ must be instantiated and retained across all
+$L = 3$ Anomaly-Attention layers during the forward pass \citep{anomalytransformer2022},
+producing a high memory demand. For IoT edge deployment, where inference memory is the 
+operationally binding
+constraint, Anomaly Transformer's runtime footprint renders it infeasible on embedded hardware, 
+regardless of dataset or input dimensionality.
+
+At the opposite extreme, TranAD \citep{tranad2022} achieves runtime memory figures that
+are remarkable. Its average peak training memory of just
+2.77\,MB and peak inference memory of 1.61\,MB are not only the lowest among all five
+models by a wide margin, but also nearly indistinguishable from its static weight memory
+of 1.17\,MB. The average overhead of 0.95\,MB indicates that TranAD's computational
+graph retains almost no intermediate activations during backpropagation. This is
+consistent with TranAD's relatively shallow encoder-decoder architecture
+\citep{tranad2022}. The practical implication is that TranAD's memory
+cost is almost entirely determined by its weights: what fits in storage will also fit
+at inference, and the gap between training and deployment is negligible. This property
+is particularly valuable in edge scenarios where memory budgets are fixed and
+predictable, and where the overhead of maintaining a computational graph --- even
+temporarily --- may exceed available capacity.
+
+A closer comparison of TimesNet and ModernTCN reveals an instructive divergence between
+static and runtime memory behaviour. In terms of static footprint, ModernTCN is
+consistently the lighter model: its average W\textsubscript{alloc} of 2.41\,MB is
+roughly 9$\times$ smaller than TimesNet's 21.35\,MB, a direct consequence of its
+parameter-efficient depthwise convolution design as discussed in
+Section~\ref{subsubsec:static_memory}. At runtime, however, this advantage partially
+inverts. On higher-dimensional datasets --- SMD, MSL, and SWaT --- ModernTCN's peak
+training memory of 470.28\,MB, 669.29\,MB, and 623.31\,MB respectively exceeds
+TimesNet's 408.97\,MB, 410.13\,MB, and 411.52\,MB by a substantial margin. This is
+a counterintuitive result: a model with roughly 9$\times$ fewer allocated weights
+produces a larger computational graph during backpropagation. 
+
+The picture changes considerably when moving from training to inference, which is the
+operationally relevant regime for edge deployment. Both models shed a large fraction
+of their runtime memory when the computational graph is discarded, but ModernTCN
+benefits more. On the lower-dimensional datasets SMAP and PSM, ModernTCN's inference
+memory of approximately 79--80\,MB represents a reduction of roughly 55\% from its
+training memory of approximately 177\,MB, while TimesNet drops from approximately
+213--216\,MB to approximately 105--106\,MB, a reduction of roughly 51\%. The gap is
+more pronounced on higher-dimensional datasets: on MSL, ModernTCN's inference memory
+of 264.98\,MB is a 60\% reduction from its training peak of 669.29\,MB, whereas
+TimesNet's inference memory of 296.63\,MB represents only a 28\% reduction from its
+training peak of 410.13\,MB. The result is that at inference, ModernTCN is the
+lighter of the two on every dataset despite being heavier during training on the
+higher-dimensional ones, with an average inference memory of 171.93\,MB compared to
+TimesNet's 219.81\,MB. For the specific context of edge deployment --- where only
+inference is performed --- ModernTCN's runtime profile is therefore more favourable
+than TimesNet.
+
+GTA's runtime memory profile is dominated by a single striking characteristic: the
+gap between peak training memory and peak inference memory is negligible across all
+five datasets. On average, peak training memory is 841.79\,MB versus peak inference
+memory of 825.86\,MB --- a reduction of less than 2\% when the computational graph
+is discarded. The near-identical training and inference
+figures for GTA indicate that the dominant memory cost is not the computational graph
+retained for backpropagation, but something persistent within the forward pass itself.
+This is consistent with the architectural analysis in
+Section~\ref{subsubsec:static_memory}: the learned adjacency matrix and the
+intermediate tensors produced by the Influence Propagation convolution must be
+instantiated and held throughout every forward pass regardless of whether gradients
+are being computed, meaning that discarding the computational graph at inference time
+yields almost no memory saving.
+
+The practical consequence of this property is significant. For most models, the
+substantial gap between training and inference memory offers a degree of hope for
+edge deployment even when training is infeasible: a model too large to train on a
+constrained device may still run inference within budget. GTA does not offer this
+escape. Its average inference memory of 825.86\,MB makes it the second most
+demanding model at inference after Anomaly Transformer (3123.55\,MB), and the
+most demanding among models whose static footprint might otherwise suggest feasibility
+--- its W\textsubscript{alloc} of 15.92\,MB sits comfortably below TimesNet's
+21.35\,MB, yet its inference memory is nearly 4$\times$ larger. This divergence 
+between static and runtime footprint makes GTA a 
+misleading candidate to evaluate for edge deployment based on static metrics alone:
+the model appears lightweight on disk, but its runtime memory demand is
+disproportionately large relative to its weight footprint.
+
+\subsubsection{Runtime Memory Footprint On Edge Device}
+
+Memory profiling on the edge device yielded results closely matching the server
+environment for four of the five models, confirming that the relative ordering and
+absolute footprints established in Section~\ref{subsubsec:runtime_server} are
+representative of the target deployment scenario and not an artefact of the server
+hardware. The one exception was Anomaly Transformer, which triggered an
+out-of-memory error on the edge device at the original batch size of 128. To obtain
+valid measurements, the batch size was reduced to 64 for Anomaly Transformer on the
+edge device; all other models were profiled at the original batch size.
+
+\begin{table}[ht]
+\centering
+\caption{Runtime memory footprint of Anomaly Transformer on the edge device
+(batch size = 64). All memory values in MB.}
+\label{tab:memory_runtime_edge_anomtr}
+\begin{tabular}{l rrrrr}
+\toprule
+\textbf{Metric} $\downarrow$
+    & \textbf{SMD}
+    & \textbf{MSL}
+    & \textbf{SMAP}
+    & \textbf{SWaT}
+    & \textbf{PSM} \\
+\midrule
+Params              & 4{,}828{,}222 & 4{,}863{,}055 & 4{,}801{,}585 & 4{,}854{,}859 & 4{,}801{,}585 \\
+W\textsubscript{ex} &         18.42 &         18.55 &         18.32 &         18.52 &         18.32 \\
+W\textsubscript{alloc} &      28.30 &         28.43 &         28.20 &         28.40 &         28.20 \\
+Peak train          &      1552.57  &      2120.92  &      2118.75  &      2122.15  &      2118.70  \\
+Peak infer          &      1484.07  &      1548.87  &      1543.49  &      1548.75  &      1543.49  \\
+OH                  &      1524.27  &      2092.49  &      2090.55  &      2093.74  &      2090.50  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Even at the reduced batch size, Anomaly Transformer's runtime memory footprint
+remains substantial, as shown in Table~\ref{tab:memory_runtime_edge_anomtr}. 
+Peak training memory ranges from 1552.57\,MB on SMD to
+2122.15\,MB on SWaT, and peak inference memory from 1484.07\,MB on SMD to
+1548.87\,MB on MSL --- figures that are roughly half of those observed on the
+server at batch size 128, consistent with the linear scaling of activation memory
+with batch size. Critically, however, these reduced figures still represent 
+the highest runtime memory demand of any
+model evaluated in this thesis, and were only obtainable by halving the batch size. 
+The out-of-memory error at
+batch size 128 is itself a meaningful result: it demonstrates that Anomaly
+Transformer cannot be operated under standard training conditions on this class of
+hardware.
+
 
 \subsection{TODO: Inference Time}
-Why TimesNet latency is much higer that ModernTCN when both rily on convolutional architecture? 
+% Why TimesNet latency is much higer that ModernTCN when both rily on convolutional architecture? 
 
-Meanwhile, both methods are inspired by CV and intend to make the time series
-analysis take advantage of the development of CV community. But the two methods take different
-paths to accomplish this goal. TimesNet makes efforts to transform the 1D time series into 2D space,
-making the time series can be modeled by the 2D ConvNets in CV community. But the additional data
-transformation and aggregation modules also bring extra memory usage and slower training speed.
+% Meanwhile, both methods are inspired by CV and intend to make the time series
+% analysis take advantage of the development of CV community. But the two methods take different
+% paths to accomplish this goal. TimesNet makes efforts to transform the 1D time series into 2D space,
+% making the time series can be modeled by the 2D ConvNets in CV community. But the additional data
+% transformation and aggregation modules also bring extra memory usage and slower training speed.
 
 
 
