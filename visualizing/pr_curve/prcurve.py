@@ -8,11 +8,11 @@ models = ['TranAD', 'TimesNet', 'ModernTCN', 'AnomalyTransformer', 'GTA']
 
 # Colorblind-friendly palette (Wong, 2011)
 colors = {
-    'TranAD':             '#0072B2',  # blue
-    'TimesNet':           '#E69F00',  # orange
-    'ModernTCN':          '#009E73',  # green
-    'AnomalyTransformer': '#D55E00',  # vermillion
-    'GTA':                '#CC79A7',  # pink
+    'TranAD':             '#55A868',  
+    'TimesNet':           '#4C72B0',  
+    'ModernTCN':          '#DD8452',  
+    'AnomalyTransformer': '#C44E52', 
+    'GTA':                '#8172B2',  
 }
 
 fig, ax = plt.subplots(figsize=(8, 6))
