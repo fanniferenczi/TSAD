@@ -16,7 +16,7 @@ F1 = np.array([
 
 # ── Style ─────────────────────────────────────────────────────────────────────
 MODEL_COLORS   = ['#4C72B0', '#DD8452', '#55A868', '#C44E52', '#8172B2']
-DATASET_COLORS = ['#333333', '#e05c00', '#1a7a4a', '#9b1c1c', '#4a2c8a']
+DATASET_COLORS = ['#4C72B0', '#DD8452', '#55A868', '#C44E52', '#8172B2']
 
 n_models   = len(MODELS)
 n_datasets = len(DATASETS)
@@ -33,9 +33,9 @@ for i, model in enumerate(MODELS):
             edgecolor='black', linewidth=0.5)
 
 ax1.set_xticks(x)
-ax1.set_xticklabels(DATASETS, fontsize=12)
-ax1.set_ylabel('F1 Score (%)', fontsize=12)
-ax1.set_title('F1 Score per Dataset (Point-Adjust Evaluation)', fontsize=13)
+ax1.set_xticklabels(DATASETS, fontsize=13)
+ax1.set_ylabel('F1 Score (%)', fontsize=13)
+ax1.set_title('F1 Score per Dataset (Point-Adjust Evaluation)', fontsize=16, fontweight="bold")
 ax1.set_ylim(0, 102)
 ax1.yaxis.grid(True, linestyle='--', alpha=0.5)
 ax1.set_axisbelow(True)
@@ -55,9 +55,9 @@ for j, dataset in enumerate(DATASETS):
             edgecolor='black', linewidth=0.5)
 
 ax2.set_xticks(x)
-ax2.set_xticklabels(MODELS, fontsize=11, rotation=10, ha='right')
-ax2.set_ylabel('F1 Score (%)', fontsize=12)
-ax2.set_title('F1 Score per Model (Point-Adjust Evaluation)', fontsize=13)
+ax2.set_xticklabels(MODELS, fontsize=13, rotation=10, ha='right')
+ax2.set_ylabel('F1 Score (%)', fontsize=13)
+ax2.set_title('F1 Score per Model (Point-Adjust Evaluation)', fontsize=16, fontweight="bold")
 ax2.set_ylim(0, 102)
 ax2.yaxis.grid(True, linestyle='--', alpha=0.5)
 ax2.set_axisbelow(True)

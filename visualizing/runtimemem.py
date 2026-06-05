@@ -25,36 +25,49 @@ infer = np.array([
 
 colors = ['#4C72B0', '#DD8452', '#55A868', '#C44E52', '#8172B2']
 
-n_models   = len(models)
-n_datasets = len(datasets)
-
+n_models      = len(models)
+n_datasets    = len(datasets)
 bar_width     = 0.13
 group_gap     = 0.3
 cluster_width = n_models * bar_width
 group_centers = np.arange(n_datasets) * (cluster_width + group_gap)
 
+def fmt(v):
+    return f'{v:.1f}' if v < 10 else f'{v:,.0f}'
+
 # ── Plot ──────────────────────────────────────────────────────────────────────
-fig, ax = plt.subplots(figsize=(15, 6))
+fig, ax = plt.subplots(figsize=(15, 8))
 
 for i, (model, color) in enumerate(zip(models, colors)):
     offsets = group_centers + i * bar_width - cluster_width / 2 + bar_width / 2
 
     # Training bar — faded, full width
-    ax.bar(offsets, train[i], width=bar_width,
-           color=color, alpha=0.25)
+    train_bars = ax.bar(offsets, train[i], width=bar_width,
+                        color=color, alpha=0.25)
 
     # Inference bar — solid, slightly narrower
-    ax.bar(offsets, infer[i], width=bar_width * 0.65,
-           color=color, alpha=0.9, label=model)
+    infer_bars = ax.bar(offsets, infer[i], width=bar_width * 0.65,
+                        color=color, alpha=0.9)
 
-    # Annotate drop % just above each inference bar
     for j in range(n_datasets):
-        drop_pct = (1 - infer[i, j] / train[i, j]) * 100
-        ax.text(offsets[j], infer[i, j] * 1.15,
-                f'−{drop_pct:.0f}%',
+        train_val = train[i, j]
+        infer_val = infer[i, j]
+
+        # Training value on top of training bar (skip for GTA)
+        if model != 'GTA':
+            ax.text(offsets[j], train_val,
+                    fmt(train_val),
+                    ha='center', va='bottom',
+                    fontsize=8.5, color=color, alpha=0.6,  # up from 6
+                    transform=ax.transData)
+
+        # Inference value on top of inference bar
+        ax.text(offsets[j], infer_val,
+                fmt(infer_val),
                 ha='center', va='bottom',
-                fontsize=5.5, color=color, alpha=0.85,
-                rotation=90)
+                fontsize=8.5, color=color, alpha=1.0,      # up from 6
+                fontweight='bold',
+                transform=ax.transData)
 
 # ── Log scale y-axis ──────────────────────────────────────────────────────────
 ax.set_yscale('log')
@@ -65,8 +78,8 @@ ax.yaxis.set_major_locator(ticker.LogLocator(base=10, numticks=10))
 ax.yaxis.set_minor_locator(ticker.LogLocator(base=10, subs=np.arange(2, 10) * 0.1,
                                               numticks=20))
 ax.yaxis.set_minor_formatter(ticker.NullFormatter())
-ax.set_ylabel('Memory (MB, log scale)', fontsize=11)
-ax.set_ylim(0.5, 8000)
+ax.set_ylabel('Memory (MB, log scale)', fontsize=15)
+ax.set_ylim(0.5, 12000)
 
 # ── Reference lines ───────────────────────────────────────────────────────────
 for ref_mb, label in [(1, '1 MB'), (10, '10 MB'),
@@ -74,12 +87,12 @@ for ref_mb, label in [(1, '1 MB'), (10, '10 MB'),
     ax.axhline(ref_mb, color='grey', linewidth=0.5, linestyle='--', alpha=0.4)
     ax.text(group_centers[-1] + cluster_width / 2 + 0.05,
             ref_mb, label,
-            va='center', fontsize=7, color='grey', alpha=0.7)
+            va='center', fontsize=11, color='grey', alpha=0.7)
 
 # ── x-axis ────────────────────────────────────────────────────────────────────
 ax.set_xticks(group_centers)
-ax.set_xticklabels(datasets, fontsize=11)
-ax.set_xlabel('Dataset', fontsize=11)
+ax.set_xticklabels(datasets, fontsize=13)
+ax.set_xlabel('Dataset', fontsize=15)
 ax.set_xlim(group_centers[0] - cluster_width,
             group_centers[-1] + cluster_width + 0.4)
 
@@ -91,15 +104,16 @@ ax.grid(axis='y', which='major', linestyle='--', alpha=0.2)
 model_handles = [mpatches.Patch(color=c, alpha=0.9, label=m)
                  for m, c in zip(models, colors)]
 train_patch = mpatches.Patch(color='grey', alpha=0.25,
-                              label='Peak training memory (faded)')
+                              label='Peak train. mem.')
 infer_patch = mpatches.Patch(color='grey', alpha=0.9,
-                              label='Peak inference memory (solid)')
+                              label='Peak infer. mem.')
 
 ax.legend(handles=model_handles + [train_patch, infer_patch],
-          loc='upper right', fontsize=8.5, frameon=False, ncol=2)
+          loc='upper right', fontsize=10, frameon=False, ncol=2,
+          bbox_to_anchor=(1.0, 1.07))
 
-ax.set_title('Peak Training vs. Inference Memory per Model and Dataset',
-             fontsize=13, fontweight='bold', pad=12)
+ax.set_title('Peak Training vs. Inference Memory',
+             fontsize=19, fontweight='bold', pad=12)
 
 plt.tight_layout()
 plt.savefig('runtime_memory_logscale.png', bbox_inches='tight', dpi=300)

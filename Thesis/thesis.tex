@@ -29,6 +29,7 @@
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{makecell}
+\raggedbottom
 
 \renewcommand*\sfdefault{lmss}
 \renewcommand*\ttdefault{txtt}
@@ -987,6 +988,7 @@ which directly determines whether it can sustain real-time inference on a resour
 edge device \citep{wang2025optimizing}.
 
 \section{Evaluation Metrics}
+\label{sec:eval_metrics}
 \subsection{Accuracy}
 
 Anomaly detection is fundamentally a binary classification problem: each time step is assigned
@@ -1066,6 +1068,7 @@ subject to the inflation effects of the PA protocol.
 
 
 \subsection{Number of operations}
+\label{subsec:macs}
 
 Measuring the computational cost of a model is essential for evaluating its suitability
 for deployment on resource-constrained IoT edge devices. Unlike wall-clock latency,
@@ -1805,7 +1808,8 @@ Lowest value per row in \textbf{bold}, second-lowest \underline{underlined}.}
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:memory_runtime_server} reveals that Anomaly Transformer's runtime memory
+Table~\ref{tab:memory_runtime_server} and Figure~\ref{fig:runtime_memory_logscale} 
+reveals that Anomaly Transformer's runtime memory
 footprint is in a category of its own. At an average peak training memory of 4324.80\,MB
 and peak inference memory of 3123.55\,MB, it exceeds the next most memory-intensive
 model at inference --- GTA at 825.86\,MB --- by a factor of approximately 3.8$\times$,
@@ -1835,6 +1839,17 @@ at inference, and the gap between training and deployment is negligible. This pr
 is particularly valuable in edge scenarios where memory budgets are fixed and
 predictable, and where the overhead of maintaining a computational graph --- even
 temporarily --- may exceed available capacity.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{runtime_memory_logscale.png}
+    \caption{Peak training and peak inference memory per model across five benchmark
+    datasets (server environment), on a log scale. For each model, the faded bar
+    represents peak training memory and the solid bar represents peak inference memory.
+    Values shown above each bar in MB. GTA displays inference memory only, as its
+    training and inference figures are nearly identical.}
+    \label{fig:runtime_memory_logscale}
+\end{figure}
 
 A closer comparison of TimesNet and ModernTCN reveals an instructive divergence between
 static and runtime memory behaviour. In terms of static footprint, ModernTCN is
@@ -1943,7 +1958,7 @@ Transformer cannot be operated under standard training conditions on this class 
 hardware.
 
 
-\subsection{TODO: Inference Time}
+\subsection{Inference Speed and Number of Operations}
 % Why TimesNet latency is much higer that ModernTCN when both rily on convolutional architecture? 
 
 % Meanwhile, both methods are inspired by CV and intend to make the time series
@@ -1952,6 +1967,349 @@ hardware.
 % making the time series can be modeled by the 2D ConvNets in CV community. But the additional data
 % transformation and aggregation modules also bring extra memory usage and slower training speed.
 
+
+For IoT edge deployment, inference speed and arithmetic cost are complementary
+constraints: a model must both complete each forward pass within the response-time
+budget of the target application \emph{and} do so with a computational workload
+that the available floating-point hardware can sustain continuously without
+accumulating a processing backlog. The two metrics introduced
+in Section~\ref{sec:eval_metrics} --- Inference Speed and Number of Operations --- 
+capture these
+constraints from different angles. MAC count is a hardware-independent measure of
+computational complexity that allows cross-model comparison regardless of execution
+environment, while wall-clock latency reflects the end-to-end delay experienced on
+a specific platform and is therefore the operationally decisive figure for deployment.
+
+As established in Section~\ref{subsec:memory},
+TranAD \citep{tranad2022} hardcodes execution to the CPU via explicit
+\texttt{.cpu()} calls, meaning it never utilises a GPU even when one is available.
+One might expect this to result in severely degraded latency relative to
+GPU-accelerated models; the measured results tell a more nuanced story.
+This illustrates that neither MAC count nor hardware execution context alone is
+sufficient to predict on-device performance, and that architecture-level
+properties --- such as model depth and sequence length --- interact with the
+execution environment in non-obvious ways.
+
+Measurements were conducted in the same two hardware environments used for memory
+profiling. The server environment provides a GPU-accelerated baseline representative
+of standard development conditions, while the edge device measurements surface the
+latency penalties that arise when models designed for server hardware are transferred
+to constrained embedded platforms. The remainder of this section presents MAC counts
+and latency figures for all evaluated models, followed by a discussion of their
+implications for edge deployment.
+
+\subsubsection{Number of Operations}
+\label{subsubsec:mac_results}
+
+All MAC counts are measured using \texttt{fvcore} \citep{fvcore}, as described in
+Section~\ref{subsec:macs}. For the CNN-based models --- TimesNet
+\citep{timesnet2023} and ModernTCN \citep{moderntcn2024} --- the built-in handlers
+provided sufficient coverage, since their dominant cost lies in convolutional and
+linear layers that \texttt{fvcore} handles natively. For the Transformer-based
+models --- TranAD \citep{tranad2022}, Anomaly Transformer
+\citep{anomalytransformer2022}, and GTA \citep{gta2022} --- custom operator handlers
+were implemented and registered to cover operations silently omitted by default,
+for instance element-wise arithmetic (\texttt{aten::mul}). For
+Anomaly Transformer, the Gaussian kernel computation used to derive the
+prior-association is entirely invisible to \texttt{fvcore} and was therefore
+computed analytically and added manually to the reported total. All MAC counts
+should consequently be interpreted as lower bounds on the true per-forward-pass
+cost, suitable for relative cross-model comparison rather than absolute throughput
+estimation.
+
+\begin{table}[ht]
+\centering
+\caption{MAC count per forward pass per model across five benchmark datasets.
+All values in MACs. Lowest value per column in \textbf{bold}, second-lowest
+\underline{underlined}.}
+\label{tab:mac_counts}
+\begin{tabular}{l rrrrr r}
+\toprule
+\textbf{Dataset}
+    & \thead{\textbf{TimesNet}\\\citep{timesnet2023}}
+    & \thead{\textbf{ModernTCN}\\\citep{moderntcn2024}}
+    & \thead{\textbf{TranAD}\\\citep{tranad2022}}
+    & \thead{\textbf{AnomTr.}\\\citep{anomalytransformer2022}}
+    & \thead{\textbf{GTA}\\\citep{gta2022}} \\
+\midrule
+SMD  & 2{,}123{,}747{,}072 & \underline{17{,}145{,}600} & \textbf{894{,}028}   & 515{,}923{,}876 & 30{,}986{,}788 \\
+MSL  & 2{,}110{,}124{,}800 & \underline{27{,}808{,}000} & \textbf{1{,}791{,}084} & 519{,}407{,}210 & 34{,}220{,}800 \\
+SMAP &   589{,}610{,}368   &  \underline{3{,}840{,}000} & \textbf{415{,}524}   & 513{,}260{,}150 & 29{,}099{,}500 \\
+SWaT & 2{,}138{,}137{,}377 & \underline{25{,}132{,}800} & \textbf{1{,}552{,}348} & 518{,}587{,}602 & 33{,}381{,}752 \\
+PSM  &   583{,}753{,}088   &  \underline{3{,}840{,}000} & \textbf{415{,}524}   & 513{,}260{,}150 & 29{,}099{,}500 \\
+\midrule
+Avg  & 1{,}509{,}074{,}541 & \underline{15{,}553{,}280} & \textbf{1{,}013{,}702} & 516{,}087{,}798 & 31{,}357{,}668 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The MAC counts in Table~\ref{tab:mac_counts} reveal a ranking that closely mirrors
+the static memory footprint results of Section~\ref{subsubsec:static_memory}.
+
+TranAD \citep{tranad2022} is by far the most computationally efficient model,
+with an average of just 1{,}013{,}702 MACs per forward pass --- more than an order
+of magnitude fewer than any other model. This is a direct consequence of its compact
+architecture: with an average of 145{,}769 parameters across datasets, TranAD performs
+only the minimum computation necessary to reconstruct the input window through its
+shallow encoder-decoder structure \citep{tranad2022}. It should be noted that
+TranAD's two inference phases are both captured in this figure, as Phase~2 depends
+on the output of Phase~1 and the two execute sequentially within a single forward
+pass \citep{tranad2022}. The reported MAC count therefore reflects the full
+computational cost of one inference step.
+
+TimesNet \citep{timesnet2023} exhibits the widest spread of MAC counts across
+datasets, ranging from 583{,}753{,}088 on PSM and SMAP to over 2{,}1B on SMD, MSL,
+and SWaT. As established in Section~\ref{subsubsec:static_memory}, this variability
+is a direct consequence of TimesNet's input-adaptive hidden dimension $d_\text{model}$,
+which scales with the number of input features (Equation~\ref{eq:timesnet_dmodel}).
+Since most weight matrices scale quadratically with $d_\text{model}$, the number of
+operations follows the same two-cluster pattern as the parameter count: datasets with
+higher-dimensional inputs incur substantially more computation per forward pass.
+
+ModernTCN \citep{moderntcn2024} exhibits the same input-adaptive scaling behaviour,
+producing an identical two-cluster pattern across datasets. However, its use of
+depthwise and grouped pointwise convolutions rather than dense 2D inception blocks
+translates into substantially lower MAC counts at every dataset, averaging
+15{,}553{,}280 MACs compared to TimesNet's 1{,}509{,}074{,}541 --- a reduction of
+roughly two orders of magnitude. ModernTCN is therefore the most computationally
+efficient CNN-based model evaluated in this thesis by a wide margin.
+
+Anomaly Transformer \citep{anomalytransformer2022} produces high but remarkably
+consistent MAC counts across datasets, averaging 516{,}087{,}798 with negligible
+variation. This mirrors its near-constant static memory footprint and stems from the
+same architectural property: its fixed hidden dimension of $d_\text{model} = 512$
+means that the dominant cost --- the attention computation over
+the sequence length $N$ --- is entirely independent of input dimensionality
+\citep{anomalytransformer2022}.
+
+GTA \citep{gta2022} occupies a moderate, stable position in the ranking, averaging
+31{,}357{,}668 MACs with little variation across datasets. This places it well below
+Anomaly Transformer and TimesNet, but above TranAD and ModernTCN.
+The relative consistency of GTA's MAC count reflects the fact that its dominant
+computational cost --- the graph convolution and dilated temporal convolution layers
+--- scales primarily with sequence length rather than input dimensionality
+\citep{gta2022}.
+
+\subsubsection{Inference Speed}
+\label{subsubsec:latency_results}
+
+Latency and throughput are measured across the same two hardware environments used
+for memory and MAC profiling. Latency is reported as the mean wall-clock time per
+batch in milliseconds, captured using \texttt{time.perf\_counter()} for CPU-resident
+models and CUDA Events for GPU-accelerated models. Throughput is derived as the
+number of individual samples processed per second. Both metrics are averaged over
+multiple inference runs on the test set to reduce timing variance. As noted in
+Section~\ref{subsubsec:mac_results}, MAC count alone does not predict wall-clock
+latency: hardware execution context and architectural properties interact in ways that
+make the two measures complementary rather than redundant, and the results below
+illustrate this concretely.
+
+\begin{table}[ht]
+\centering
+\caption{Mean batch latency (ms) and throughput (samples/s) per model across five
+benchmark datasets. Lowest latency per column in \textbf{bold}, second-lowest
+\underline{underlined}. Highest throughput per column in \textbf{bold},
+second-highest \underline{underlined}.}
+\label{tab:latency}
+\begin{tabular}{ll rrrrr r}
+\toprule
+& \textbf{Dataset}
+    & \thead{\textbf{TimesNet}\\\citep{timesnet2023}}
+    & \thead{\textbf{ModernTCN}\\\citep{moderntcn2024}}
+    & \thead{\textbf{TranAD}\\\citep{tranad2022}}
+    & \thead{\textbf{AnomTr.}\\\citep{anomalytransformer2022}}
+    & \thead{\textbf{GTA}\\\citep{gta2022}} \\
+\midrule
+\multirow{5}{*}{\rotatebox[origin=c]{90}{\textbf{Latency (ms)}}}
+& SMD  & 140.2 & \textbf{6.6}  & \underline{10.2} & 33.0 & 63.2 \\
+& MSL  & 145.0 & \textbf{8.8}  & \underline{16.1} & 33.4 & 69.3 \\
+& SMAP &  42.4 & \underline{12.4} & \textbf{8.2}  & 33.5 & 59.3 \\
+& SWaT & 151.3 & \textbf{8.2}  & \underline{11.8} & 34.2 & 68.3 \\
+& PSM  &  54.0 & \underline{12.4} & \textbf{8.3}  & 34.5 & 59.7 \\
+& Avg  & 106.6 & \textbf{9.7}  & \underline{10.9} & 33.7 & 64.0 \\
+\midrule
+\multirow{5}{*}{\rotatebox[origin=c]{90}{\textbf{Throughput (s/s)}}}
+& SMD  &   912.9 & \textbf{19482.4} & \underline{12598.0} & 3882.0 & 2024.0 \\
+& MSL  &   882.7 & \textbf{14524.5} & \underline{7935.0}  & 3833.0 & 1848.3 \\
+& SMAP & 3022.2 & \underline{10342.3} & \textbf{15519.0} & 3820.2 & 2158.1 \\
+& SWaT &   846.1 & \textbf{15544.9} & \underline{10837.0} & 3742.1 & 1874.1 \\
+& PSM  & 2369.8 & \underline{10341.4} & \textbf{10837.0} & 3707.7 & 2144.6 \\
+& Avg  & 1606.7 & \textbf{14047.1} & \underline{11545.2} & 3797.0 & 2009.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The latency and throughput results in Table~\ref{tab:latency} reveal a ranking that
+diverges from the MAC count ordering, illustrating that operation count
+alone is insufficient to predict wall-clock inference time.
+
+ModernTCN \citep{moderntcn2024} achieves the lowest average latency of 9.7\,ms and
+the highest average throughput of 14{,}047 samples per second, consistent with its
+low MAC count and GPU-accelerated execution. This result is expected: few operations
+combined with hardware parallelism translate directly into fast inference.
+
+Despite sharing a convolutional backbone with ModernTCN, TimesNet
+\citep{timesnet2023} is by far the slowest model, with an average latency of
+106.6\,ms --- more than ten times higher than ModernTCN. The additional latency 
+overhead stems from
+TimesNet's architectural design: unlike ModernTCN, which operates directly on 1D
+time series via depthwise and grouped convolutions, TimesNet transforms the input
+into 2D space to leverage 2D convolutional backbones from the computer vision
+community. As noted by the authors of ModernTCN \citep{moderntcn2024}, this additional 
+data transformation
+and aggregation step introduces memory overhead and slower execution speed. 
+TimesNet also exhibits the same
+two-cluster latency pattern seen in its MAC and memory results: latency on
+higher-dimensional datasets (SMD, MSL, SWaT) is roughly three times higher than
+on lower-dimensional ones (SMAP, PSM), directly reflecting the input-adaptive
+scaling of $d_\text{model}$.
+
+The most striking result is TranAD \citep{tranad2022}, which achieves the second
+lowest average latency of 10.9\,ms despite executing entirely on the CPU. One might
+expect CPU execution to impose a severe latency penalty relative to GPU-accelerated
+models; the results show otherwise. TranAD's architectural simplicity --- its shallow
+encoder-decoder with an average of just 1{,}013{,}702 MACs per forward pass ---
+more than compensates for the absence of GPU parallelism. On SMAP and PSM,
+TranAD even surpasses ModernTCN in both latency and throughput.
+
+Anomaly Transformer \citep{anomalytransformer2022} achieves consistent latency of
+approximately 33--34\,ms across all datasets, mirroring the near-constant MAC count
+observed in Section~\ref{subsubsec:mac_results}. Its fixed $d_\text{model} = 512$
+makes inference time effectively independent of input dimensionality, resulting in
+predictable but moderate performance that places it third in the ranking.
+
+GTA \citep{gta2022} is the second slowest model despite having roughly 16$\times$
+fewer MACs than Anomaly Transformer. Its average latency of 64.0\,ms suggests
+that GTA incurs runtime overhead beyond raw arithmetic cost, likely from the
+graph construction and adjacency matrix operations required by its Influence
+Propagation convolution \citep{gta2022}. This is consistent with the observation in
+Section~\ref{subsubsec:runtime_server} that GTA's runtime memory footprint is
+disproportionately large relative to its static weight memory, pointing to
+persistent architectural overhead that affects both memory and speed.
+
+\subsubsection{Inference Speed on Edge Device}
+Table~\ref{tab:latency_edge} reports latency and throughput measured directly on the
+edge device. The experimental setup mirrors the server environment, with one
+exception: as noted in Section~\ref{subsubsec:runtime_server}, Anomaly Transformer
+triggered an out-of-memory error on the edge device at the original batch size of
+128, and was therefore profiled at a reduced batch size of 64. This reduction affects
+the absolute throughput figure for Anomaly Transformer --- a smaller batch processes
+fewer samples per forward pass --- but does not affect latency comparability in a
+meaningful way, since latency is reported per batch rather than per sample. All other
+models were profiled at the original batch size of 128.
+
+\begin{table}[ht]
+\centering
+\caption{Mean batch latency (ms) and throughput (samples/s) per model across five
+benchmark datasets on the edge device. Lowest latency per column in \textbf{bold},
+second-lowest \underline{underlined}. Highest throughput per column in \textbf{bold},
+second-highest \underline{underlined}. AnomTr.\ profiled at batch size 64;
+all other models at batch size 128.}
+\label{tab:latency_edge}
+\begin{tabular}{ll rrrrr r}
+\toprule
+& \textbf{Dataset}
+    & \thead{\textbf{TimesNet}\\\citep{timesnet2023}}
+    & \thead{\textbf{ModernTCN}\\\citep{moderntcn2024}}
+    & \thead{\textbf{TranAD}\\\citep{tranad2022}}
+    & \thead{\textbf{AnomTr.}\\\citep{anomalytransformer2022}}
+    & \thead{\textbf{GTA}\\\citep{gta2022}} \\
+\midrule
+\multirow{6}{*}{\rotatebox[origin=c]{90}{\textbf{Latency (ms)}}}
+& SMD  & 398.8 & \textbf{66.4}  & \underline{103.4}  & 138.9 & 887.8 \\
+& MSL  & 399.0 & \textbf{95.1}  & \underline{137.5} & 138.9 & 974.5 \\
+& SMAP & 252.8 & \textbf{21.5}  & \underline{79.8}  & 138.4 & 792.2 \\
+& SWaT & 398.4 & \textbf{88.2}  & \underline{137.0} & 138.9 & 955.5 \\
+& PSM  & 253.0 & \textbf{21.5}  & \underline{81.1}  & 138.4 & 791.8 \\
+& Avg  & 340.4 & \textbf{58.6}  & \underline{107.8} & 138.7 & 880.3 \\
+\midrule
+\multirow{6}{*}{\rotatebox[origin=c]{90}{\textbf{Throughput (s/s)}}}
+& SMD  &   321.0 & \textbf{1927.1} & \underline{1237.9} &   460.9 &  144.2 \\
+& MSL  &   320.8 & \textbf{1345.7} & \underline{930.0}  &   460.8 &  131.4 \\
+& SMAP &   506.4 & \textbf{5942.6} & \underline{1603.9} &   462.4 &  161.6 \\
+& SWaT &   321.2 & \textbf{1452.0} & \underline{934.3}  &   460.6 &  134.0 \\
+& PSM  &   506.0 & \textbf{5940.5} & \underline{1577.7} &   462.5 &  161.7 \\
+& Avg  &   395.1 & \textbf{3321.6} & \underline{1256.8} &   461.4 &  146.6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:latency_scatter} plots average latency against average throughput
+for both environments, making the cross-environment shift in rankings immediately
+visible. On the server, TranAD and ModernTCN occupy the same high-throughput,
+low-latency corner of the plot, with TranAD at 10.9\,ms and ModernTCN at 9.7\,ms
+--- a negligible difference that suggests CPU execution imposes little penalty when
+the model is sufficiently lightweight. On the edge device, this picture changes
+considerably: ModernTCN retains its position as the fastest model at 58.6\,ms,
+while TranAD falls back to 107.8\,ms, nearly doubling its latency. The gap between
+the two widens from under 2\,ms on the server to approximately 49\,ms on the edge,
+indicating that the absence of GPU acceleration becomes more consequential on
+constrained hardware where CPU performance is also more limited.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{latency_throughput.png}
+    \caption{Average latency (ms) versus throughput (samples/s) for all five models
+    on the server (left) and edge device (right). The ideal region is the top-left
+    corner (low latency, high throughput). }
+    \label{fig:latency_scatter}
+\end{figure}
+
+GTA \citep{gta2022} stands out as a clear outlier in both environments, but
+particularly on the edge device, where its average latency of 880.3\,ms places it
+far to the right of all other models. Even on the server, where it achieves
+64.0\,ms, GTA is the second slowest model despite having a moderate MAC count ---
+a pattern attributed in Section~\ref{subsubsec:mac_results} to runtime overhead
+from its graph construction and adjacency matrix operations. On the edge device
+this overhead compounds further, resulting in a slowdown factor of approximately
+13.8$\times$, the largest of any model evaluated. TimesNet \citep{timesnet2023},
+by contrast, degrades more gracefully: despite being the slowest model on the
+server at 106.6\,ms, its edge latency of 340.4\,ms represents a slowdown of
+roughly 3.2$\times$, the smallest of all five models, suggesting that its
+convolutional operations translate relatively well to the edge hardware.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.85\textwidth]{latency_slowdown.png}
+    \caption{Latency slowdown factor (edge / server) for each model, computed as
+    the ratio of average edge latency to average server latency. The dotted line
+    at 1$\times$ marks the baseline of no slowdown. TranAD executes on CPU in
+    both environments; all other models execute on GPU.}
+    \label{fig:latency_slowdown}
+\end{figure}
+
+Figure~\ref{fig:latency_slowdown} shows the latency slowdown factor for each model
+when moving from the server to the edge device. All models are slower on the edge,
+as expected, but the degree of degradation varies substantially across architectures
+and does not follow the MAC count ranking.
+
+TimesNet \citep{timesnet2023} degrades the least, with a slowdown factor of only
+3.2$\times$. This is the smallest penalty of any model despite TimesNet being the
+slowest model in absolute terms on both platforms. The result suggests that
+TimesNet's 2D convolutional operations, while computationally expensive, translate
+relatively efficiently to the edge hardware.
+
+Anomaly Transformer \citep{anomalytransformer2022} follows with a slowdown of
+4.1$\times$, the second most graceful degradation. Its fixed architecture and
+consistent MAC count across datasets appear to result in predictable and moderate
+scaling behaviour across hardware environments.
+
+ModernTCN \citep{moderntcn2024} incurs a 6.0$\times$ slowdown. While it remains
+the fastest model in absolute latency on both platforms, the penalty is larger than
+one might expect for a lightweight convolutional model, suggesting that some of its
+efficiency advantage on the server is tied to GPU parallelism that is less available
+on the edge device.
+
+TranAD \citep{tranad2022} shows a 9.9$\times$ slowdown --- the second largest ---
+which is particularly notable given that it already runs on the CPU on the server.
+The result indicates that the edge device's CPU is substantially less capable than
+the server CPU, amplifying the cost of CPU-only execution in a constrained
+environment.
+
+GTA \citep{gta2022} exhibits by far the largest slowdown at 13.8$\times$,
+confirming that its persistent graph construction overhead does not scale well to
+constrained hardware. Combined with its already high absolute latency on the server,
+this makes GTA the least suitable model for edge deployment among those evaluated.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
