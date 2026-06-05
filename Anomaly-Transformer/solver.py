@@ -333,11 +333,29 @@ class Solver(object):
 
         gt = test_labels.astype(int)
 
-         # ── save raw scores & labels for PR curve (BEFORE point-adjust) ──
-        np.save(f'scores_AnomalyTransformer_{self.dataset}_loss.npy', test_energy)
-        np.save(f'scores_AnomalyTransformer_{self.dataset}_labels.npy', test_labels)
-        print(f"Saved raw scores and labels for PR curve ({self.dataset})")
-        # ─────────────────────────────────────────────────────────────────
+        if getattr(self, 'save_analysis', False):
+            # ── scores, labels, threshold, predictions (BEFORE point-adjust) ──
+            np.save(f'scores_AnomalyTransformer_{self.dataset}_loss.npy',            test_energy)
+            np.save(f'scores_AnomalyTransformer_{self.dataset}_labels.npy',          test_labels)
+            np.save(f'scores_AnomalyTransformer_{self.dataset}_threshold.npy',       np.array([thresh]))
+            pred_padded = np.pad(pred, (0, 427617 - len(pred)))
+            np.save(f'scores_AnomalyTransformer_{self.dataset}_predictions_raw.npy', pred_padded)
+            print(f"Saved scores, labels, threshold, predictions ({self.dataset})")
+ 
+            # ── reconstruction ────────────────────────────────────────────────
+            recon_list = []
+            with torch.no_grad():
+                for i, (input_data, _) in enumerate(self.test_loader):
+                    input  = input_data.float().to(self.device)
+                    output, _, _, _ = self.model(input)
+                    recon_list.append(output[:, -1, :].detach().cpu().numpy())
+            recon_arr    = np.concatenate(recon_list, axis=0)
+            recon_padded = np.zeros((427617, recon_arr.shape[1]), dtype=np.float16)
+            recon_padded[:len(recon_arr)] = recon_arr.astype(np.float16)
+            np.save(f'scores_AnomalyTransformer_{self.dataset}_test_output.npy', recon_padded)
+            print(f"Saved reconstruction: {recon_padded.shape}")
+        # ─────────────────────────────────────────────────────────────────────
+
 
         print("pred:   ", pred.shape)
         print("gt:     ", gt.shape)

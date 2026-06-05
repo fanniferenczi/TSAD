@@ -247,3 +247,6 @@ Accuracy : 0.9809, Precision : 0.9874, Recall : 0.9432, F-score : 0.9648, AUC : 
 SWAT_ModernTCN_SWAT_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
 Accuracy : 0.9796, Precision : 0.9585, Recall : 0.8697, F-score : 0.9119, AUC : 0.2465, AU-PR : 0.0960
 
+MSL_ModernTCN_MSL_ftM_dim64_nb1_lk51_sk5_ffr1_ps8_str4_multiFalse_mergedFalse_Exp_0  
+Accuracy : 0.9641, Precision : 0.8939, Recall : 0.7480, F-score : 0.8145, AUC : 0.6146, AU-PR : 0.1408
+

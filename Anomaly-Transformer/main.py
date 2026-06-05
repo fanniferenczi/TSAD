@@ -41,6 +41,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', type=str, default='./dataset/creditcard_ts.csv')
     parser.add_argument('--model_save_path', type=str, default='checkpoints')
     parser.add_argument('--anormly_ratio', type=float, default=4.00)
+    parser.add_argument('--save_analysis', action='store_true', help='Save scores, reconstruction and threshold for analysis')
 
     config = parser.parse_args()
 
