@@ -65,7 +65,7 @@ ax.set_ylabel("Latency slowdown factor (edge / server)", fontsize=11)
 ax.set_ylim(0, max(slowdown.values()) * 1.18)
 ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f\u00d7"))
 
-ax.set_title("Edge vs. Server Inference Latency Slowdown", fontsize=12,
+ax.set_title("Edge vs. Server Inference Latency Increase", fontsize=12,
              fontweight="bold", pad=10)
 
 plt.tight_layout()

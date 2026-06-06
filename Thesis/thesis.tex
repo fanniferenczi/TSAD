@@ -29,6 +29,7 @@
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{makecell}
+\usepackage{float}
 \raggedbottom
 
 \renewcommand*\sfdefault{lmss}
@@ -373,11 +374,248 @@ These models are particularly useful when labelled data is scarce, as they commo
 Hybrid models integrate the strengths of multiple approaches --- for example, combining forecasting and reconstruction objectives within a single joint optimisation framework.
 This allows the model to simultaneously benefit from prediction accuracy and latent space regularity \citep{darban2024survey}.
 
+\section{Evaluation Metrics}
+\label{sec:eval_metrics}
+This section introduces the metrics used to evaluate model performance throughout 
+this thesis. Evaluation is conducted along two complementary axes: detection 
+accuracy, which measures how well each model identifies anomalous time steps, and 
+computational efficiency, which assesses the practical suitability of each model 
+for deployment on resource-constrained IoT edge devices.
+
+\subsection{Accuracy}
+
+Anomaly detection is fundamentally a binary classification problem: each time step is assigned
+either a normal or an anomalous label. Evaluating this classification accurately is non-trivial
+in the TSAD setting, where anomalies are rare by definition and the class distribution is
+heavily imbalanced \cite{darban2024survey}. Four point-wise metrics are used throughout
+this thesis to assess detection performance: Precision, Recall, F1 Score, and the Area Under
+the Receiver Operating Characteristic Curve (AUC-ROC). These metrics are defined in terms
+of the standard confusion matrix quantities: True Positives (\(\mathrm{TP}\)), False Positives
+(\(\mathrm{FP}\)), True Negatives (\(\mathrm{TN}\)), and False Negatives (\(\mathrm{FN}\)).
+
+\paragraph{Precision.}
+Precision measures the proportion of time steps flagged as anomalous by the model that are
+truly anomalous \cite{darban2024survey}. A low precision indicates that the model
+generates many false alarms, incorrectly labelling normal behaviour as anomalous.
+
+\begin{equation}
+    \mathrm{Precision} = \frac{\mathrm{TP}}{\mathrm{TP} + \mathrm{FP}}
+\end{equation}
+
+\paragraph{Recall.}
+Recall measures the proportion of actual anomalous time steps that the model successfully
+detects \cite{darban2024survey}. A low recall indicates that many true anomalies are
+missed.
+
+\begin{equation}
+    \mathrm{Recall} = \frac{\mathrm{TP}}{\mathrm{TP} + \mathrm{FN}}
+\end{equation}
+
+\paragraph{F1 Score.}
+Precision and Recall are in tension: a model can trivially achieve perfect recall by flagging
+every time step as anomalous, or perfect precision by only flagging the single most certain
+anomaly. The F1 Score is the harmonic mean of the two, providing a single balanced measure
+of detection quality \cite{darban2024survey}.
+
+\begin{equation}
+    \mathrm{F1} = 2 \cdot \frac{\mathrm{Precision} \cdot \mathrm{Recall}}{\mathrm{Precision} + \mathrm{Recall}}
+\end{equation}
+
+\noindent In this thesis, F1 scores are computed using the \emph{point adjustment} (PA)
+protocol \cite{xu2018donut}. Under this convention, if at least one point within a contiguous
+anomalous segment is detected by the model, all points in that segment are considered
+correctly detected. This corresponds to an \emph{abnormal event detection} perspective: once
+any part of an anomalous event is flagged, the entire event is considered found, which is
+meaningful in real-world monitoring scenarios where a single alert would trigger a human
+inspection of the surrounding time window \cite{xu2022detectionadjustment}.
+
+Point adjustment is a widely adopted convention in the TSAD literature, and all baseline
+results compared in this thesis are also evaluated under the same protocol
+\cite{xu2022detectionadjustment}. This ensures a fair comparison across
+models. It should nevertheless be noted that point adjustment can overestimate model
+performance, particularly on datasets with long anomalous segments, since detecting even
+a single point in a long segment credits the model with detecting the entire segment
+\cite{darban2024carla}. The AU-PR metric described below is reported without point
+adjustment and therefore provides a complementary, stricter perspective on model
+performance.
+
+\paragraph{Area Under the Precision-Recall Curve (AU-PR).}
+The metrics above depend on a fixed anomaly threshold. In practice, anomaly scores are
+continuous, and the choice of threshold is dataset- and application-specific. The Area Under
+the Precision-Recall Curve (AU-PR) provides a threshold-independent summary of model
+performance \cite{darban2024survey}:
+\begin{equation}
+    \mathrm{AU\text{-}PR} = \int_{0}^{1} \mathrm{Precision}(t)\,
+    \frac{d(\mathrm{Recall}(t))}{dt}\, dt
+\end{equation}
+
+\noindent AU-PR is particularly suited to heavily imbalanced datasets, where anomalies
+constitute only a small fraction of all observations \cite{darban2024survey}. Unlike
+AUC-ROC, which weights true positive and false positive rates symmetrically regardless of
+class frequency, AU-PR focuses directly on the model's ability to retrieve the rare anomalous
+class with high precision. Because it is computed from raw anomaly scores without applying
+point adjustment, it also serves as a more conservative measure of performance than the
+point-adjusted F1 score, and is therefore useful for cross-model comparison that is not
+subject to the inflation effects of the PA protocol.
 
 
 
+\subsection{Number of operations}
+\label{subsec:macs}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Measuring the computational cost of a model is essential for evaluating its suitability
+for deployment on resource-constrained IoT edge devices. Unlike wall-clock latency,
+which is sensitive to hardware, software stack, and execution environment, the number
+of arithmetic operations performed during a forward pass provides a hardware-independent
+characterisation of computational complexity that can be compared across models and
+platforms.
+
+\paragraph{Multiply-Accumulate Operations (MACs).}
+The standard unit used to quantify the computational cost of deep learning inference
+is the \emph{Multiply-Accumulate operation} (MAC). A single MAC corresponds to one
+multiplication followed by one addition, the elementary operation in dot products,
+convolutions, and matrix multiplications that constitute the bulk of deep neural
+network computation. Because one MAC equals two floating-point operations (FLOPs),
+the two units are often used interchangeably in the literature, with the relationship
+$\mathrm{FLOPs} \approx 2 \times \mathrm{MACs}$.
+
+For edge deployment, the MAC count of a model's forward pass is a primary indicator
+of whether it can meet real-time latency budgets on hardware with limited floating-point
+throughput, such as microcontrollers or low-power embedded processors. A lower MAC
+count generally implies lower energy consumption, lower heat dissipation, and the
+possibility of deployment on cheaper or more constrained hardware.
+
+\paragraph{Measurement with \texttt{fvcore}.}
+All MAC counts reported in this thesis are measured using \texttt{fvcore} \cite{fvcore}, an open-source
+library developed by Meta Research that provides a \texttt{FlopCountAnalysis} utility for
+PyTorch models. \texttt{fvcore} works by tracing the model's computational graph on a
+given input tensor and registering a hook for each operator encountered. For each
+registered operator — such as \texttt{nn.Linear} or \texttt{nn.Conv1d} — a handler function computes the theoretical MAC count from the
+operator's input and output shapes. The total MAC count is then the sum of all
+per-operator counts accumulated over a single forward pass.
+
+\paragraph{Coverage gaps and custom handlers.}
+\texttt{fvcore} provides built-in handlers for the most common PyTorch operators,
+particularly those dominated by matrix multiplication, such as linear projections and
+convolutions. However, it does not cover all operations present in every architecture.
+Specifically, element-wise operations such as softmax, layer normalisation, residual
+additions, and activation functions are not counted by default, as \texttt{fvcore}
+registers them as unsupported and silently omits their contribution.
+
+For convolution-based models such as TimesNet \cite{timesnet2023} and ModernTCN
+\cite{moderntcn2024}, the built-in handlers provided sufficient coverage, since the
+dominant cost lies in convolutional and linear layers that \texttt{fvcore} handles
+natively. For the Transformer-based models evaluated in this thesis --- TranAD
+\cite{tranad2022}, Anomaly Transformer \cite{anomalytransformer2022}, and GTA
+\cite{gta2022} --- the standard handlers were insufficient. \texttt{fvcore} only
+registers handlers for a subset of PyTorch operators, and silently omits any operation
+for which no handler is defined. For these architectures, a range of operations went
+uncounted by default, including element-wise arithmetic (e.g.\ \texttt{aten::mul}), 
+activation functions (e.g.\ \texttt{aten::softmax}), and other operations such as
+\texttt{aten::pow}. Custom operator handlers were therefore
+implemented and registered with \texttt{fvcore}'s analysis object to cover these
+missing operations. The reported MAC counts should consequently be
+interpreted as lower bounds on the true per-forward-pass cost, suitable for relative
+cross-model comparison rather than absolute throughput estimation.
+
+\subsection{Memory Usage}
+\label{subsec:memory}
+
+Memory footprint is a critical constraint for IoT edge deployment, where devices
+operate under strict memory budgets. Five memory-related metrics are reported for each model in this thesis,
+each capturing a different aspect of the model's memory demand. One model requires special 
+treatment throughout: TranAD's original codebase hardcodes execution to the CPU via explicit 
+\texttt{.cpu()} calls \citep{tranad2022}, meaning all its memory figures are measured from 
+CPU RAM rather than GPU VRAM.
+
+\paragraph{Parameter count.}
+The parameter count is the total number of individually learnable scalar values in
+the model --- all weights and biases across every layer. This number determines the
+minimum information that must be stored to represent a trained model, and is a
+hardware-independent measure of model size. A model with fewer parameters is
+generally cheaper to store and transfer, and is more likely to fit within the flash
+or RAM constraints of an edge device.
+
+\paragraph{Weight memory (exact).}
+The exact weight memory is the parameter count multiplied by the number of bytes per
+value, and is hardware-independent. For TimesNet, ModernTCN, and Anomaly Transformer, 
+which operate in \texttt{float32}, this equals $\mathrm{Params} \times 4\ \mathrm{bytes}$. 
+TranAD and GTA both operate in \texttt{float64} at runtime, so their exact weight memory is computed as 
+$\mathrm{Params} \times 8\ \mathrm{bytes}$. This represents the minimum memory required 
+to hold the trained model and is the most direct measure of storage cost for deployment.
+
+\paragraph{Weight memory (allocated).}
+The allocated weight memory is the amount of memory the runtime actually
+reserves for the model's parameters, as reported by PyTorch's memory allocator. This
+value can exceed the exact weight memory because PyTorch allocates memory in blocks
+and may also include persistent buffers that are part of the model's state but are not updated by
+gradient descent. For TimesNet, ModernTCN, Anomaly Transformer, and GTA 
+this is measured from GPU VRAM via PyTorch's GPU memory tracker. For TranAD, it is 
+measured from CPU RAM via the CPU memory allocator.
+
+\paragraph{Peak training memory.}
+The peak training memory is the maximum GPU memory occupied at any point during a
+training forward-backward pass. It is substantially larger than the inference memory
+because during backpropagation PyTorch must retain all intermediate activations
+produced during the forward pass in order to compute gradients.
+For all models except TranAD, this is measured in GPU VRAM. For TranAD, it is measured 
+in CPU RAM, reflecting its CPU-only execution.
+
+\paragraph{Peak inference memory.}
+The peak inference memory is the maximum GPU memory occupied during a forward pass
+on the test set, with no gradient computation. This is the relevant memory figure
+for deployment, since in production the model only performs forward passes on new
+incoming data. During training, PyTorch builds a 
+computational graph by retaining all intermediate activation tensors --- that is, the 
+output of every layer --- rather than discarding them after use \citep{pytorch_autograd}. This is necessary because 
+the backward pass computes gradients via the chain rule, and each layer's gradient depends 
+on the activations produced by that layer during the forward pass. At inference time, 
+however, no such graph is needed: activations can be discarded immediately after each 
+layer has produced its output, which is why peak inference memory is substantially lower 
+than peak training memory. As with peak training 
+memory, this figure is measured in GPU VRAM for all models except TranAD, for which it 
+reflects CPU RAM.
+
+\paragraph{Memory overhead.}
+The memory overhead is defined as the difference between the peak training memory
+and the exact weight memory:
+\begin{equation}
+    \mathrm{Overhead} = \mathrm{Peak\ training\ memory} - \mathrm{Weight\ memory\ (exact)}
+\end{equation}
+It quantifies everything that is not the model weights themselves: temporary tensors,
+intermediate activations, gradient buffers, and other bookkeeping structures that
+PyTorch allocates during a training step. A large overhead relative to the weight
+memory indicates that the model's training cost is dominated by the computation graph
+rather than by the number of parameters. For TranAD, the overhead is computed from 
+CPU RAM measurements and should be interpreted accordingly.
+
+
+\subsection{Inference Speed}
+
+Beyond memory and computational cost, the time a model takes to process incoming
+data is a critical constraint for edge deployment. Two complementary metrics are used to
+characterise inference speed in this thesis.
+
+\paragraph{Latency.}
+Latency is defined here as the mean wall-clock time required to process one batch
+of input windows, measured in milliseconds. A batch consists of multiple fixed-length time-series windows. 
+Latency captures the end-to-end delay from
+receiving a batch of windows to producing anomaly scores for all windows in that batch 
+and is therefore the most
+directly relevant metric for assessing whether a model can operate within the
+response time budget of a target application. A model with high latency may
+produce accurate results but still be unsuitable for deployment in scenarios where
+anomalies must be flagged within a tight time window.
+
+\paragraph{Throughput.}
+Throughput is defined as the number of input windows processed per second.
+It is the inverse perspective of latency: where latency characterises the delay
+for a single batch, throughput characterises how much data the model can handle
+over time. In other words, throughput measures how many complete time-series windows 
+the model can process per second under a fixed batch size.
+Throughput is particularly relevant when evaluating a model's ability
+to keep pace with the data rate of a sensor stream without accumulating a
+backlog. 
 
 \chapter{Chosen Models}
 
@@ -937,238 +1175,15 @@ and throughput characterise how quickly each model can process incoming sensor d
 which directly determines whether it can sustain real-time inference on a resource-limited 
 edge device \citep{wang2025optimizing}.
 
-\section{Evaluation Metrics}
-\label{sec:eval_metrics}
-\subsection{Accuracy}
+All experiments were conducted on a server running Ubuntu 24.04.2 LTS, 
+equipped with two Intel Xeon E5-2620 v4 
+processors (8 cores per socket, 2 threads per core, 2.10\,GHz base clock, 
+3.00\,GHz boost), yielding 32 logical CPU cores in total, and 128\,GB of system 
+RAM. The server is fitted with four NVIDIA GeForce RTX 2080 GPUs, each with 
+8\,GB of VRAM. TranAD, whose codebase hardcodes CPU execution, 
+ran exclusively on the server CPUs.
 
-Anomaly detection is fundamentally a binary classification problem: each time step is assigned
-either a normal or an anomalous label. Evaluating this classification accurately is non-trivial
-in the TSAD setting, where anomalies are rare by definition and the class distribution is
-heavily imbalanced \cite{darban2024survey}. Four point-wise metrics are used throughout
-this thesis to assess detection performance: Precision, Recall, F1 Score, and the Area Under
-the Receiver Operating Characteristic Curve (AUC-ROC). These metrics are defined in terms
-of the standard confusion matrix quantities: True Positives (\(\mathrm{TP}\)), False Positives
-(\(\mathrm{FP}\)), True Negatives (\(\mathrm{TN}\)), and False Negatives (\(\mathrm{FN}\)).
-
-\paragraph{Precision.}
-Precision measures the proportion of time steps flagged as anomalous by the model that are
-truly anomalous \cite{darban2024survey}. A low precision indicates that the model
-generates many false alarms, incorrectly labelling normal behaviour as anomalous.
-
-\begin{equation}
-    \mathrm{Precision} = \frac{\mathrm{TP}}{\mathrm{TP} + \mathrm{FP}}
-\end{equation}
-
-\paragraph{Recall.}
-Recall measures the proportion of actual anomalous time steps that the model successfully
-detects \cite{darban2024survey}. A low recall indicates that many true anomalies are
-missed.
-
-\begin{equation}
-    \mathrm{Recall} = \frac{\mathrm{TP}}{\mathrm{TP} + \mathrm{FN}}
-\end{equation}
-
-\paragraph{F1 Score.}
-Precision and Recall are in tension: a model can trivially achieve perfect recall by flagging
-every time step as anomalous, or perfect precision by only flagging the single most certain
-anomaly. The F1 Score is the harmonic mean of the two, providing a single balanced measure
-of detection quality \cite{darban2024survey}.
-
-\begin{equation}
-    \mathrm{F1} = 2 \cdot \frac{\mathrm{Precision} \cdot \mathrm{Recall}}{\mathrm{Precision} + \mathrm{Recall}}
-\end{equation}
-
-\noindent In this thesis, F1 scores are computed using the \emph{point adjustment} (PA)
-protocol \cite{xu2018donut}. Under this convention, if at least one point within a contiguous
-anomalous segment is detected by the model, all points in that segment are considered
-correctly detected. This corresponds to an \emph{abnormal event detection} perspective: once
-any part of an anomalous event is flagged, the entire event is considered found, which is
-meaningful in real-world monitoring scenarios where a single alert would trigger a human
-inspection of the surrounding time window \cite{xu2022detectionadjustment}.
-
-Point adjustment is a widely adopted convention in the TSAD literature, and all baseline
-results compared in this thesis are also evaluated under the same protocol
-\cite{xu2022detectionadjustment}. This ensures a fair comparison across
-models. It should nevertheless be noted that point adjustment can overestimate model
-performance, particularly on datasets with long anomalous segments, since detecting even
-a single point in a long segment credits the model with detecting the entire segment
-\cite{darban2024carla}. The AU-PR metric described below is reported without point
-adjustment and therefore provides a complementary, stricter perspective on model
-performance.
-
-\paragraph{Area Under the Precision-Recall Curve (AU-PR).}
-The metrics above depend on a fixed anomaly threshold. In practice, anomaly scores are
-continuous, and the choice of threshold is dataset- and application-specific. The Area Under
-the Precision-Recall Curve (AU-PR) provides a threshold-independent summary of model
-performance \cite{darban2024survey}:
-\begin{equation}
-    \mathrm{AU\text{-}PR} = \int_{0}^{1} \mathrm{Precision}(t)\,
-    \frac{d(\mathrm{Recall}(t))}{dt}\, dt
-\end{equation}
-
-\noindent AU-PR is particularly suited to heavily imbalanced datasets, where anomalies
-constitute only a small fraction of all observations \cite{darban2024survey}. Unlike
-AUC-ROC, which weights true positive and false positive rates symmetrically regardless of
-class frequency, AU-PR focuses directly on the model's ability to retrieve the rare anomalous
-class with high precision. Because it is computed from raw anomaly scores without applying
-point adjustment, it also serves as a more conservative measure of performance than the
-point-adjusted F1 score, and is therefore useful for cross-model comparison that is not
-subject to the inflation effects of the PA protocol.
-
-
-
-\subsection{Number of operations}
-\label{subsec:macs}
-
-Measuring the computational cost of a model is essential for evaluating its suitability
-for deployment on resource-constrained IoT edge devices. Unlike wall-clock latency,
-which is sensitive to hardware, software stack, and execution environment, the number
-of arithmetic operations performed during a forward pass provides a hardware-independent
-characterisation of computational complexity that can be compared across models and
-platforms.
-
-\paragraph{Multiply-Accumulate Operations (MACs).}
-The standard unit used to quantify the computational cost of deep learning inference
-is the \emph{Multiply-Accumulate operation} (MAC). A single MAC corresponds to one
-multiplication followed by one addition, the elementary operation in dot products,
-convolutions, and matrix multiplications that constitute the bulk of deep neural
-network computation. Because one MAC equals two floating-point operations (FLOPs),
-the two units are often used interchangeably in the literature, with the relationship
-$\mathrm{FLOPs} \approx 2 \times \mathrm{MACs}$.
-
-For edge deployment, the MAC count of a model's forward pass is a primary indicator
-of whether it can meet real-time latency budgets on hardware with limited floating-point
-throughput, such as microcontrollers or low-power embedded processors. A lower MAC
-count generally implies lower energy consumption, lower heat dissipation, and the
-possibility of deployment on cheaper or more constrained hardware.
-
-\paragraph{Measurement with \texttt{fvcore}.}
-All MAC counts reported in this thesis are measured using \texttt{fvcore} \cite{fvcore}, an open-source
-library developed by Meta Research that provides a \texttt{FlopCountAnalysis} utility for
-PyTorch models. \texttt{fvcore} works by tracing the model's computational graph on a
-given input tensor and registering a hook for each operator encountered. For each
-registered operator — such as \texttt{nn.Linear} or \texttt{nn.Conv1d} — a handler function computes the theoretical MAC count from the
-operator's input and output shapes. The total MAC count is then the sum of all
-per-operator counts accumulated over a single forward pass.
-
-\paragraph{Coverage gaps and custom handlers.}
-\texttt{fvcore} provides built-in handlers for the most common PyTorch operators,
-particularly those dominated by matrix multiplication, such as linear projections and
-convolutions. However, it does not cover all operations present in every architecture.
-Specifically, element-wise operations such as softmax, layer normalisation, residual
-additions, and activation functions are not counted by default, as \texttt{fvcore}
-registers them as unsupported and silently omits their contribution.
-
-For convolution-based models such as TimesNet \cite{timesnet2023} and ModernTCN
-\cite{moderntcn2024}, the built-in handlers provided sufficient coverage, since the
-dominant cost lies in convolutional and linear layers that \texttt{fvcore} handles
-natively. For the Transformer-based models evaluated in this thesis --- TranAD
-\cite{tranad2022}, Anomaly Transformer \cite{anomalytransformer2022}, and GTA
-\cite{gta2022} --- the standard handlers were insufficient. \texttt{fvcore} only
-registers handlers for a subset of PyTorch operators, and silently omits any operation
-for which no handler is defined. For these architectures, a range of operations went
-uncounted by default, including element-wise arithmetic (e.g.\ \texttt{aten::mul}), 
-activation functions (e.g.\ \texttt{aten::softmax}), and other operations such as
-\texttt{aten::pow}. Custom operator handlers were therefore
-implemented and registered with \texttt{fvcore}'s analysis object to cover these
-missing operations. The reported MAC counts should consequently be
-interpreted as lower bounds on the true per-forward-pass cost, suitable for relative
-cross-model comparison rather than absolute throughput estimation.
-
-\subsection{Memory Usage}
-\label{subsec:memory}
-
-Memory footprint is a critical constraint for IoT edge deployment, where devices
-operate under strict memory budgets. Five memory-related metrics are reported for each model in this thesis,
-each capturing a different aspect of the model's memory demand. One model requires special 
-treatment throughout: TranAD's original codebase hardcodes execution to the CPU via explicit 
-\texttt{.cpu()} calls \citep{tranad2022}, meaning all its memory figures are measured from 
-CPU RAM rather than GPU VRAM.
-
-\paragraph{Parameter count.}
-The parameter count is the total number of individually learnable scalar values in
-the model --- all weights and biases across every layer. This number determines the
-minimum information that must be stored to represent a trained model, and is a
-hardware-independent measure of model size. A model with fewer parameters is
-generally cheaper to store and transfer, and is more likely to fit within the flash
-or RAM constraints of an edge device.
-
-\paragraph{Weight memory (exact).}
-The exact weight memory is the parameter count multiplied by the number of bytes per
-value, and is hardware-independent. For TimesNet, ModernTCN, and Anomaly Transformer, 
-which operate in \texttt{float32}, this equals $\mathrm{Params} \times 4\ \mathrm{bytes}$. 
-TranAD and GTA both operate in \texttt{float64} at runtime, so their exact weight memory is computed as 
-$\mathrm{Params} \times 8\ \mathrm{bytes}$. This represents the minimum memory required 
-to hold the trained model and is the most direct measure of storage cost for deployment.
-
-\paragraph{Weight memory (allocated).}
-The allocated weight memory is the amount of memory the runtime actually
-reserves for the model's parameters, as reported by PyTorch's memory allocator. This
-value can exceed the exact weight memory because PyTorch allocates memory in blocks
-and may also include persistent buffers that are part of the model's state but are not updated by
-gradient descent. For TimesNet, ModernTCN, Anomaly Transformer, and GTA 
-this is measured from GPU VRAM via PyTorch's GPU memory tracker. For TranAD, it is 
-measured from CPU RAM via the CPU memory allocator.
-
-\paragraph{Peak training memory.}
-The peak training memory is the maximum GPU memory occupied at any point during a
-training forward-backward pass. It is substantially larger than the inference memory
-because during backpropagation PyTorch must retain all intermediate activations
-produced during the forward pass in order to compute gradients.
-For all models except TranAD, this is measured in GPU VRAM. For TranAD, it is measured 
-in CPU RAM, reflecting its CPU-only execution.
-
-\paragraph{Peak inference memory.}
-The peak inference memory is the maximum GPU memory occupied during a forward pass
-on the test set, with no gradient computation. This is the relevant memory figure
-for deployment, since in production the model only performs forward passes on new
-incoming data. During training, PyTorch builds a 
-computational graph by retaining all intermediate activation tensors --- that is, the 
-output of every layer --- rather than discarding them after use \citep{pytorch_autograd}. This is necessary because 
-the backward pass computes gradients via the chain rule, and each layer's gradient depends 
-on the activations produced by that layer during the forward pass. At inference time, 
-however, no such graph is needed: activations can be discarded immediately after each 
-layer has produced its output, which is why peak inference memory is substantially lower 
-than peak training memory. As with peak training 
-memory, this figure is measured in GPU VRAM for all models except TranAD, for which it 
-reflects CPU RAM.
-
-\paragraph{Memory overhead.}
-The memory overhead is defined as the difference between the peak training memory
-and the exact weight memory:
-\begin{equation}
-    \mathrm{Overhead} = \mathrm{Peak\ training\ memory} - \mathrm{Weight\ memory\ (exact)}
-\end{equation}
-It quantifies everything that is not the model weights themselves: temporary tensors,
-intermediate activations, gradient buffers, and other bookkeeping structures that
-PyTorch allocates during a training step. A large overhead relative to the weight
-memory indicates that the model's training cost is dominated by the computation graph
-rather than by the number of parameters. For TranAD, the overhead is computed from 
-CPU RAM measurements and should be interpreted accordingly.
-
-
-\subsection{Inference Speed}
-
-Beyond memory and computational cost, the time a model takes to process incoming
-data is a critical constraint for edge deployment. Two complementary metrics are used to
-characterise inference speed in this thesis.
-
-\paragraph{Latency.}
-Latency is defined here as the mean wall-clock time required to process one batch
-of input windows, measured in milliseconds. Latency captures the end-to-end delay from
-receiving an input to producing an anomaly score, and is therefore the most
-directly relevant metric for assessing whether a model can operate within the
-response time budget of a target application. A model with high latency may
-produce accurate results but still be unsuitable for deployment in scenarios where
-anomalies must be flagged within a tight time window.
-
-\paragraph{Throughput.}
-Throughput is defined as the number of individual samples processed per second.
-It is the inverse perspective of latency: where latency characterises the delay
-for a single batch, throughput characterises how much data the model can handle
-over time. Throughput is particularly relevant when evaluating a model's ability
-to keep pace with the data rate of a sensor stream without accumulating a
-backlog. 
+TODO: EDGE DEVICE SPECS
 
 \section{Datasets}
 
@@ -1247,9 +1262,6 @@ PSM  & Server machines  & 25 & 105,984 &  87,841 & 27.76 \\
 \end{tabular}
 \end{table}
 
-\section{TODO: Methodology}
-\label{ch:methodology}
-
 \section{Results}
 
 All models were trained and evaluated following the experimental setup described in their respective publications, 
@@ -1259,10 +1271,7 @@ the default values provided in the model's official repository were adopted. Thi
 that comparisons reflect each model's intended operating point rather than an arbitrarily tuned configuration, 
 and to expose any discrepancies between reported and reproducible performance. Training procedures, including 
 the number of epochs, learning rate schedules, and data preprocessing steps, were likewise kept consistent 
-with each paper's specification wherever possible. The efficiency metrics --- multiply-accumulate operations (MACs), 
-memory footprint, and inference latency --- were collected under a unified profiling setup, as 
-described in Chapter~\ref{ch:methodology}, to ensure cross-model comparability independent of the 
-individual training configurations.
+with each paper's specification wherever possible.
 
 \subsection{F1 score and AU-PR}
 
@@ -1353,8 +1362,12 @@ each model, making consistency and variance across benchmarks directly comparabl
     \label{fig:aupr_barchart}
 \end{figure}
 
-The F1 bar chart reveals that Anomaly Transformer achieves the highest scores and the most 
-consistent performance across datasets, with its bars tightly clustered between 92\% and 97\%. 
+Figure~\ref{fig:f1_barchart} and Figure~\ref{fig:aupr_barchart} complement the 
+per-dataset results in Table~\ref{tab:accuracy} by enabling direct visual 
+comparison of F1 and AU-PR scores across models and datasets.
+
+Anomaly Transformer achieves the highest scores and the most 
+consistent performance, with values between 92\% and 97\% across all datasets. 
 TranAD shows a wider spread, reflecting its strong performance on SMD and MSL contrasted with 
 a notably lower F1 on SWaT (81.43\%). TimesNet and ModernTCN exhibit very similar profiles, 
 both characterised by wide spread driven by their weak performance on SMAP (68.47\% and 
@@ -1363,8 +1376,8 @@ relatively compact spread with high scores on most datasets, though it similarly
 SMAP (76.00\%), while its PSM result (96.41\%) sits at the upper end.
 
 The AU-PR bar chart tells a strikingly different story. Four of the five models --- TimesNet, 
-ModernTCN, Anomaly Transformer, and GTA --- have their bars tightly clustered between 
-roughly 8\% and 16\%, with PSM as a consistent positive outlier for all of them. This 
+ModernTCN, Anomaly Transformer, and GTA --- show AU-PR values 
+between roughly 8\% and 16\% across most datasets, with PSM as a consistent positive outlier for all of them. This 
 reveals that, despite their differing F1 profiles, these models perform similarly poorly in 
 terms of threshold-independent detection quality across most datasets. TranAD is a clear 
 exception: its bars are widely spread from approximately 10\% to 74\%, with its SWaT AU-PR 
@@ -1425,13 +1438,6 @@ AU-PR exposes differences between models that point-adjusted F1 alone would conc
 
 
 \paragraph{Confusion Matrix.}
-\begin{figure}[ht]
-    \centering
-    \includegraphics[width=0.7\textwidth]{confusion_matrix_TranAD_SWaT.png}
-    \caption{Confusion matrix for TranAD on SWaT. Rows represent the 
-    actual class and columns the predicted class.}
-    \label{fig:cm_tranad_swat}
-\end{figure}
 
 Figure~\ref{fig:cm_tranad_swat} shows the confusion matrix for TranAD on SWaT. 
 Out of the total anomalous points in the test set, only 4.5\% 
@@ -1446,6 +1452,36 @@ protocol, any anomaly segment in which at least one point is correctly flagged i
 fully detected \citep{su2019smd}, which substantially changes the effective recall and explains 
 why the PA F1 reported in Table~\ref{tab:accuracy} is considerably higher than these raw counts 
 would suggest.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{confusion_matrix_TranAD_SWaT.png}
+    \caption{Confusion matrix for TranAD on SWaT. Rows represent the 
+    actual class and columns the predicted class.}
+    \label{fig:cm_tranad_swat}
+\end{figure}
+
+
+\subsubsection{PR Curve Analysis on PSM}
+
+Figure~\ref{fig:pr_all_psm} shows the precision-recall curves for all five models
+on the PSM dataset, included to contextualise the SWaT findings and verify that
+the near-random AU-PR behaviour observed there is not a universal property of these
+models. In contrast to SWaT, where four of the five models collapsed towards or
+below the no-skill baseline almost immediately, all five models remain above the
+27.8\% baseline across the full recall range on PSM. TranAD \citep{tranad2022}
+again achieves the highest AU-PR (AP = 0.460), but the margin over the remaining
+models is substantially smaller than on SWaT, with TimesNet (AP = 0.378),
+ModernTCN (AP = 0.383), GTA (AP = 0.304), and Anomaly Transformer (AP = 0.288)
+all maintaining meaningful discriminative signal above chance.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{pr_curves_all_PSM.png}
+    \caption{Precision-recall curves for all five models on PSM. The dashed line
+    indicates the no-skill baseline equal to the dataset's anomaly rate (27.8\%).}
+    \label{fig:pr_all_psm}
+\end{figure}
 
 \subsubsection{Missed Detections on SMAP}
 
@@ -1745,7 +1781,9 @@ count by approximately four rather than two.
     \centering
     \includegraphics[width=\textwidth]{memory_alloc_variability.png}
     \caption{Allocated weight memory variability across datasets for each model.
-    Each dot represents one dataset; the horizontal line spans the min--max range.}
+    Each dot represents one dataset; the horizontal line spans the min--max range.
+    Some dots may not be visible where multiple datasets yield identical or 
+    near-identical values, causing them to overlap.}
     \label{fig:memory_alloc_variability}
 \end{figure}
 
@@ -1847,33 +1885,33 @@ Lowest value per row in \textbf{bold}, second-lowest \underline{underlined}.}
 \midrule
 \multirow{3}{*}{SMD}
     & Train & \underline{408.97} & 470.28 &   \textbf{2.47} & 4228.20 &  777.10 \\
-    & Infer & 295.39 & \underline{188.19} &   \textbf{1.45} & 3027.15 &  761.22 \\
-    & OH    & 378.53 & 467.62 &   \textbf{1.45} & 4199.43 &  \underline{314.77} \\
+    & Infer & 295.39 & \underline{188.19} &   \textbf{1.45} & 3027.15 &  314.77 \\
+    & OH    & \underline{378.53} & 467.62 &   \textbf{1.45} & 4199.43 &  761.22 \\
 \midrule
 \multirow{3}{*}{MSL}
     & Train & \underline{410.13} & 669.29 &   \textbf{4.81} & 4351.70 & 1178.96 \\
-    & Infer & 296.63 & \underline{264.98} &   \textbf{2.72} & 3151.52 & 1162.69 \\
-    & OH    & \underline{381.07} & 664.96 &   \textbf{1.45} & 4322.79 &  603.16 \\
+    & Infer & 296.63 & \underline{264.98} &   \textbf{2.72} & 3151.52 &  603.16 \\
+    & OH    & \underline{381.07} & 664.96 &   \textbf{1.45} & 4322.79 & 1162.69 \\
 \midrule
 \multirow{3}{*}{SMAP}
     & Train & 215.64 & \underline{176.75} &   \textbf{1.20} & 4346.71 &  616.12 \\
-    & Infer & 104.74 &  \underline{79.37} &   \textbf{0.74} & 3144.19 &  600.46 \\
-    & OH    & 207.93 & \underline{176.15} &   \textbf{0.74} & 4318.04 &  303.65 \\
+    & Infer & 104.74 &  \underline{79.37} &   \textbf{0.74} & 3144.19 &  303.65 \\
+    & OH    & 207.93 & \underline{176.15} &   \textbf{0.74} & 4318.04 &  600.46 \\
 \midrule
 \multirow{3}{*}{SWaT}
     & Train & \underline{411.52} & 623.31 &   \textbf{4.19} & 4350.73 & 1019.17 \\
-    & Infer & 296.63 & \underline{247.19} &   \textbf{2.39} & 3150.69 & 1003.01 \\
-    & OH    & \underline{381.07} & 619.41 &   \textbf{0.38} & 4321.86 &  522.51 \\
+    & Infer & 296.63 & \underline{247.19} &   \textbf{2.39} & 3150.69 &  522.51 \\
+    & OH    & \underline{381.07} & 619.41 &   \textbf{0.38} & 4321.86 & 1003.01 \\
 \midrule
 \multirow{3}{*}{PSM}
     & Train & 212.66 & \underline{176.80} &   \textbf{1.20} & 4346.66 &  617.59 \\
-    & Infer & 105.66 &  \underline{79.92} &   \textbf{0.74} & 3144.19 &  601.94 \\
-    & OH    & 204.96 & \underline{176.20} &   \textbf{0.74} & 4317.99 &  304.65 \\
+    & Infer & 105.66 &  \underline{79.92} &   \textbf{0.74} & 3144.19 &  304.65 \\
+    & OH    & 204.96 & \underline{176.20} &   \textbf{0.74} & 4317.99 &  601.94 \\
 \midrule
 \multirow{3}{*}{Average}
     & Train & \underline{331.78} & 423.29 &   \textbf{2.77} & 4324.80 &  841.79 \\
-    & Infer & 219.81 & \underline{171.93} &   \textbf{1.61} & 3123.55 &  825.86 \\
-    & OH    & \underline{310.71} & 420.87 &   \textbf{0.95} & 4296.02 &  409.75 \\
+    & Infer & 219.81 & \underline{171.93} &   \textbf{1.61} & 3123.55 &  409.75 \\
+    & OH    & \underline{310.71} & 420.87 &   \textbf{0.95} & 4296.02 &  825.86 \\
 \bottomrule
 \multicolumn{7}{l}{\footnotesize $^\dagger$ TranAD executes on CPU; memory measured in RAM rather than GPU VRAM.}
 \end{tabular}
@@ -1882,9 +1920,7 @@ Lowest value per row in \textbf{bold}, second-lowest \underline{underlined}.}
 Table~\ref{tab:memory_runtime_server} and Figure~\ref{fig:runtime_memory_logscale} 
 reveals that Anomaly Transformer's runtime memory
 footprint is in a category of its own. At an average peak training memory of 4324.80\,MB
-and peak inference memory of 3123.55\,MB, it exceeds the next most memory-intensive
-model at inference --- GTA at 825.86\,MB --- by a factor of approximately 3.8$\times$,
-and the lightest GPU-resident model at inference --- ModernTCN at 171.93\,MB --- by
+and peak inference memory of 3123.55\,MB it exceeds the lightest GPU-resident model at inference --- ModernTCN at 171.93\,MB --- by
 nearly 18$\times$. This stands in sharp contrast to the static footprint analysis, where
 Anomaly Transformer's W\textsubscript{alloc} of approximately 28--29\,MB, while the
 largest among all models, did not suggest such an extreme runtime demand. The explanation
@@ -1917,8 +1953,7 @@ temporarily --- may exceed available capacity.
     \caption{Peak training and peak inference memory per model across five benchmark
     datasets (server environment), on a log scale. For each model, the faded bar
     represents peak training memory and the solid bar represents peak inference memory.
-    Values shown above each bar in MB. GTA displays inference memory only, as its
-    training and inference figures are nearly identical.}
+    Values shown above each bar in MB.}
     \label{fig:runtime_memory_logscale}
 \end{figure}
 
@@ -1951,33 +1986,17 @@ TimesNet's 219.81\,MB. For the specific context of edge deployment --- where onl
 inference is performed --- ModernTCN's runtime profile is therefore more favourable
 than TimesNet.
 
-GTA's runtime memory profile is dominated by a single striking characteristic: the
-gap between peak training memory and peak inference memory is negligible across all
-five datasets. On average, peak training memory is 841.79\,MB versus peak inference
-memory of 825.86\,MB --- a reduction of less than 2\% when the computational graph
-is discarded. The near-identical training and inference
-figures for GTA indicate that the dominant memory cost is not the computational graph
-retained for backpropagation, but something persistent within the forward pass itself.
-This is consistent with the architectural analysis in
-Section~\ref{subsubsec:static_memory}: the learned adjacency matrix and the
-intermediate tensors produced by the Influence Propagation convolution must be
-instantiated and held throughout every forward pass regardless of whether gradients
-are being computed, meaning that discarding the computational graph at inference time
-yields almost no memory saving.
-
-The practical consequence of this property is significant. For most models, the
-substantial gap between training and inference memory offers a degree of hope for
-edge deployment even when training is infeasible: a model too large to train on a
-constrained device may still run inference within budget. GTA does not offer this
-escape. Its average inference memory of 825.86\,MB makes it the second most
-demanding model at inference after Anomaly Transformer (3123.55\,MB), and the
-most demanding among models whose static footprint might otherwise suggest feasibility
---- its W\textsubscript{alloc} of 15.92\,MB sits comfortably below TimesNet's
-21.35\,MB, yet its inference memory is nearly 4$\times$ larger. This divergence 
-between static and runtime footprint makes GTA a 
-misleading candidate to evaluate for edge deployment based on static metrics alone:
-the model appears lightweight on disk, but its runtime memory demand is
-disproportionately large relative to its weight footprint.
+GTA's runtime memory profile reveals a different pattern from what its static
+footprint alone would suggest. Its average peak training memory of 841.79\,MB is
+the second highest among all models after Anomaly Transformer, driven by a large
+overhead of 825.86\,MB. This indicates that
+GTA's computational graph retains a substantial amount of intermediate activations
+during backpropagation, consistent with the deep graph convolution layers that must 
+propagate gradients through the learned
+adjacency structure \citep{gta2022}. At inference, however, GTA sheds a
+significant fraction of this cost: its average peak inference memory of 409.75\,MB
+represents a reduction of roughly 51\% from the training peak, indicating that
+discarding the computational graph does yield a meaningful memory saving.
 
 \subsubsection{Runtime Memory Footprint On Edge Device}
 
@@ -2030,14 +2049,6 @@ hardware.
 
 
 \subsection{Inference Speed and Number of Operations}
-% Why TimesNet latency is much higer that ModernTCN when both rily on convolutional architecture? 
-
-% Meanwhile, both methods are inspired by CV and intend to make the time series
-% analysis take advantage of the development of CV community. But the two methods take different
-% paths to accomplish this goal. TimesNet makes efforts to transform the 1D time series into 2D space,
-% making the time series can be modeled by the 2D ConvNets in CV community. But the additional data
-% transformation and aggregation modules also bring extra memory usage and slower training speed.
-
 
 For IoT edge deployment, inference speed and arithmetic cost are complementary
 constraints: a model must both complete each forward pass within the response-time
@@ -2091,7 +2102,7 @@ estimation.
 \begin{table}[ht]
 \centering
 \caption{MAC count per forward pass per model across five benchmark datasets.
-All values in MACs. Lowest value per column in \textbf{bold}, second-lowest
+All values in kilo-MACs (kMACs). Lowest value per column in \textbf{bold}, second-lowest
 \underline{underlined}.}
 \label{tab:mac_counts}
 \begin{tabular}{l rrrrr r}
@@ -2103,13 +2114,13 @@ All values in MACs. Lowest value per column in \textbf{bold}, second-lowest
     & \thead{\textbf{AnomTr.}\\\citep{anomalytransformer2022}}
     & \thead{\textbf{GTA}\\\citep{gta2022}} \\
 \midrule
-SMD  & 2{,}123{,}747{,}072 & \underline{17{,}145{,}600} & \textbf{894{,}028}   & 515{,}923{,}876 & 30{,}986{,}788 \\
-MSL  & 2{,}110{,}124{,}800 & \underline{27{,}808{,}000} & \textbf{1{,}791{,}084} & 519{,}407{,}210 & 34{,}220{,}800 \\
-SMAP &   589{,}610{,}368   &  \underline{3{,}840{,}000} & \textbf{415{,}524}   & 513{,}260{,}150 & 29{,}099{,}500 \\
-SWaT & 2{,}138{,}137{,}377 & \underline{25{,}132{,}800} & \textbf{1{,}552{,}348} & 518{,}587{,}602 & 33{,}381{,}752 \\
-PSM  &   583{,}753{,}088   &  \underline{3{,}840{,}000} & \textbf{415{,}524}   & 513{,}260{,}150 & 29{,}099{,}500 \\
+SMD  & 2{,}123{,}747 & \underline{17{,}145} & \textbf{894}   & 515{,}923 & 30{,}986 \\
+MSL  & 2{,}110{,}124 & \underline{27{,}808} & \textbf{1{,}791} & 519{,}407 & 34{,}220 \\
+SMAP &   589{,}610   &  \underline{3{,}840} & \textbf{415}   & 513{,}260 & 29{,}099 \\
+SWaT & 2{,}138{,}137 & \underline{25{,}132} & \textbf{1{,}552} & 518{,}587 & 33{,}381 \\
+PSM  &   583{,}753   &  \underline{3{,}840} & \textbf{415}   & 513{,}260 & 29{,}099 \\
 \midrule
-Avg  & 1{,}509{,}074{,}541 & \underline{15{,}553{,}280} & \textbf{1{,}013{,}702} & 516{,}087{,}798 & 31{,}357{,}668 \\
+Avg  & 1{,}509{,}074 & \underline{15{,}553} & \textbf{1{,}013} & 516{,}087 & 31{,}357 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2118,7 +2129,7 @@ The MAC counts in Table~\ref{tab:mac_counts} reveal a ranking that closely mirro
 the static memory footprint results of Section~\ref{subsubsec:static_memory}.
 
 TranAD \citep{tranad2022} is by far the most computationally efficient model,
-with an average of just 1{,}013{,}702 MACs per forward pass --- more than an order
+with an average of just 1{,}013 kMACs per forward pass --- more than an order
 of magnitude fewer than any other model. This is a direct consequence of its compact
 architecture: with an average of 145{,}769 parameters across datasets, TranAD performs
 only the minimum computation necessary to reconstruct the input window through its
@@ -2129,7 +2140,7 @@ pass \citep{tranad2022}. The reported MAC count therefore reflects the full
 computational cost of one inference step.
 
 TimesNet \citep{timesnet2023} exhibits the widest spread of MAC counts across
-datasets, ranging from 583{,}753{,}088 on PSM and SMAP to over 2{,}1B on SMD, MSL,
+datasets, ranging from 583{,}753 kMACs on PSM and SMAP to over 2{,}1M kMACs on SMD, MSL,
 and SWaT. As established in Section~\ref{subsubsec:static_memory}, this variability
 is a direct consequence of TimesNet's input-adaptive hidden dimension $d_\text{model}$,
 which scales with the number of input features (Equation~\ref{eq:timesnet_dmodel}).
@@ -2141,12 +2152,12 @@ ModernTCN \citep{moderntcn2024} exhibits the same input-adaptive scaling behavio
 producing an identical two-cluster pattern across datasets. However, its use of
 depthwise and grouped pointwise convolutions rather than dense 2D inception blocks
 translates into substantially lower MAC counts at every dataset, averaging
-15{,}553{,}280 MACs compared to TimesNet's 1{,}509{,}074{,}541 --- a reduction of
+15{,}553 kMACs compared to TimesNet's 1{,}509{,}074 --- a reduction of
 roughly two orders of magnitude. ModernTCN is therefore the most computationally
 efficient CNN-based model evaluated in this thesis by a wide margin.
 
 Anomaly Transformer \citep{anomalytransformer2022} produces high but remarkably
-consistent MAC counts across datasets, averaging 516{,}087{,}798 with negligible
+consistent MAC counts across datasets, averaging 516{,}087 kMACs with negligible
 variation. This mirrors its near-constant static memory footprint and stems from the
 same architectural property: its fixed hidden dimension of $d_\text{model} = 512$
 means that the dominant cost --- the attention computation over
@@ -2154,10 +2165,10 @@ the sequence length $N$ --- is entirely independent of input dimensionality
 \citep{anomalytransformer2022}.
 
 GTA \citep{gta2022} occupies a moderate, stable position in the ranking, averaging
-31{,}357{,}668 MACs with little variation across datasets. This places it well below
+31{,}357 kMACs with little variation across datasets. This places it well below
 Anomaly Transformer and TimesNet, but above TranAD and ModernTCN.
 The relative consistency of GTA's MAC count reflects the fact that its dominant
-computational cost --- the graph convolution and dilated temporal convolution layers
+computational cost --- the graph convolution and dilated convolution layers
 --- scales primarily with sequence length rather than input dimensionality
 \citep{gta2022}.
 
@@ -2167,8 +2178,9 @@ computational cost --- the graph convolution and dilated temporal convolution la
 Latency and throughput are measured across the same two hardware environments used
 for memory and MAC profiling. Latency is reported as the mean wall-clock time per
 batch in milliseconds, captured using \texttt{time.perf\_counter()} for CPU-resident
-models and CUDA Events for GPU-accelerated models. Throughput is derived as the
-number of individual samples processed per second. Both metrics are averaged over
+models and CUDA Events for GPU-accelerated models. Throughput is derived as the number of 
+individual input windows processed per second.
+Both metrics are averaged over
 multiple inference runs on the test set to reduce timing variance. As noted in
 Section~\ref{subsubsec:mac_results}, MAC count alone does not predict wall-clock
 latency: hardware execution context and architectural properties interact in ways that
@@ -2177,7 +2189,7 @@ illustrate this concretely.
 
 \begin{table}[ht]
 \centering
-\caption{Mean batch latency (ms) and throughput (samples/s) per model across five
+\caption{Mean batch latency (ms) and throughput (input windows/s) per model across five
 benchmark datasets. Lowest latency per column in \textbf{bold}, second-lowest
 \underline{underlined}. Highest throughput per column in \textbf{bold},
 second-highest \underline{underlined}.}
@@ -2215,13 +2227,13 @@ diverges from the MAC count ordering, illustrating that operation count
 alone is insufficient to predict wall-clock inference time.
 
 ModernTCN \citep{moderntcn2024} achieves the lowest average latency of 9.7\,ms and
-the highest average throughput of 14{,}047 samples per second, consistent with its
+the highest average throughput of 14{,}047 input windows per second, consistent with its
 low MAC count and GPU-accelerated execution. This result is expected: few operations
 combined with hardware parallelism translate directly into fast inference.
 
 Despite sharing a convolutional backbone with ModernTCN, TimesNet
 \citep{timesnet2023} is by far the slowest model, with an average latency of
-106.6\,ms --- more than ten times higher than ModernTCN. The additional latency 
+106.6\,ms, more than ten times higher than ModernTCN. The additional latency 
 overhead stems from
 TimesNet's architectural design: unlike ModernTCN, which operates directly on 1D
 time series via depthwise and grouped convolutions, TimesNet transforms the input
@@ -2239,7 +2251,7 @@ The most striking result is TranAD \citep{tranad2022}, which achieves the second
 lowest average latency of 10.9\,ms despite executing entirely on the CPU. One might
 expect CPU execution to impose a severe latency penalty relative to GPU-accelerated
 models; the results show otherwise. TranAD's architectural simplicity --- its shallow
-encoder-decoder with an average of just 1{,}013{,}702 MACs per forward pass ---
+encoder-decoder with an average of just 1{,}013 kMACs per forward pass ---
 more than compensates for the absence of GPU parallelism. On SMAP and PSM,
 TranAD even surpasses ModernTCN in both latency and throughput.
 
@@ -2249,29 +2261,25 @@ observed in Section~\ref{subsubsec:mac_results}. Its fixed $d_\text{model} = 512
 makes inference time effectively independent of input dimensionality, resulting in
 predictable but moderate performance that places it third in the ranking.
 
-GTA \citep{gta2022} is the second slowest model despite having roughly 16$\times$
-fewer MACs than Anomaly Transformer. Its average latency of 64.0\,ms suggests
+GTA \citep{gta2022} is the second slowest model. Its average latency of 64.0\,ms suggests
 that GTA incurs runtime overhead beyond raw arithmetic cost, likely from the
-graph construction and adjacency matrix operations required by its Influence
-Propagation convolution \citep{gta2022}. This is consistent with the observation in
-Section~\ref{subsubsec:runtime_server} that GTA's runtime memory footprint is
-disproportionately large relative to its static weight memory, pointing to
-persistent architectural overhead that affects both memory and speed.
+graph construction and adjacency matrix operations.
 
 \subsubsection{Inference Speed on Edge Device}
 Table~\ref{tab:latency_edge} reports latency and throughput measured directly on the
 edge device. The experimental setup mirrors the server environment, with one
 exception: as noted in Section~\ref{subsubsec:runtime_server}, Anomaly Transformer
 triggered an out-of-memory error on the edge device at the original batch size of
-128, and was therefore profiled at a reduced batch size of 64. This reduction affects
-the absolute throughput figure for Anomaly Transformer --- a smaller batch processes
-fewer samples per forward pass --- but does not affect latency comparability in a
-meaningful way, since latency is reported per batch rather than per sample. All other
-models were profiled at the original batch size of 128.
+128, and was therefore profiled at a reduced batch size of 64.
+This reduction affects the absolute throughput figure for Anomaly Transformer (a smaller 
+batch processes fewer samples per forward pass) and also affects latency, since latency 
+depends on the batch size. However, results are still reported in this configuration due 
+to memory constraints, and latency is interpreted as model inference time under the maximum 
+feasible batch size for each model.
 
 \begin{table}[ht]
 \centering
-\caption{Mean batch latency (ms) and throughput (samples/s) per model across five
+\caption{Mean batch latency (ms) and throughput (input windows/s) per model across five
 benchmark datasets on the edge device. Lowest latency per column in \textbf{bold},
 second-lowest \underline{underlined}. Highest throughput per column in \textbf{bold},
 second-highest \underline{underlined}. AnomTr.\ profiled at batch size 64;
@@ -2286,7 +2294,7 @@ all other models at batch size 128.}
     & \thead{\textbf{AnomTr.}\\\citep{anomalytransformer2022}}
     & \thead{\textbf{GTA}\\\citep{gta2022}} \\
 \midrule
-\multirow{6}{*}{\rotatebox[origin=c]{90}{\textbf{Latency (ms)}}}
+\multirow{6}{*}{\rotatebox[origin=c]{90}{\textbf{Latency}}}
 & SMD  & 398.8 & \textbf{66.4}  & \underline{103.4}  & 138.9 & 887.8 \\
 & MSL  & 399.0 & \textbf{95.1}  & \underline{137.5} & 138.9 & 974.5 \\
 & SMAP & 252.8 & \textbf{21.5}  & \underline{79.8}  & 138.4 & 792.2 \\
@@ -2294,7 +2302,7 @@ all other models at batch size 128.}
 & PSM  & 253.0 & \textbf{21.5}  & \underline{81.1}  & 138.4 & 791.8 \\
 & Avg  & 340.4 & \textbf{58.6}  & \underline{107.8} & 138.7 & 880.3 \\
 \midrule
-\multirow{6}{*}{\rotatebox[origin=c]{90}{\textbf{Throughput (s/s)}}}
+\multirow{6}{*}{\rotatebox[origin=c]{90}{\textbf{Throughput}}}
 & SMD  &   321.0 & \textbf{1927.1} & \underline{1237.9} &   460.9 &  144.2 \\
 & MSL  &   320.8 & \textbf{1345.7} & \underline{930.0}  &   460.8 &  131.4 \\
 & SMAP &   506.4 & \textbf{5942.6} & \underline{1603.9} &   462.4 &  161.6 \\
@@ -2320,14 +2328,14 @@ constrained hardware where CPU performance is also more limited.
 \begin{figure}[ht]
     \centering
     \includegraphics[width=\textwidth]{latency_throughput.png}
-    \caption{Average latency (ms) versus throughput (samples/s) for all five models
+    \caption{Average latency (ms) versus throughput (input windows/s) for all five models
     on the server (left) and edge device (right). The ideal region is the top-left
     corner (low latency, high throughput). }
     \label{fig:latency_scatter}
 \end{figure}
 
-GTA \citep{gta2022} stands out as a clear outlier in both environments, but
-particularly on the edge device, where its average latency of 880.3\,ms places it
+GTA \citep{gta2022} stands out as a clear outlier on the edge device, where its 
+average latency of 880.3\,ms places it
 far to the right of all other models. Even on the server, where it achieves
 64.0\,ms, GTA is the second slowest model despite having a moderate MAC count ---
 a pattern attributed in Section~\ref{subsubsec:mac_results} to runtime overhead
@@ -2336,48 +2344,51 @@ this overhead compounds further, resulting in a slowdown factor of approximately
 13.8$\times$, the largest of any model evaluated. TimesNet \citep{timesnet2023},
 by contrast, degrades more gracefully: despite being the slowest model on the
 server at 106.6\,ms, its edge latency of 340.4\,ms represents a slowdown of
-roughly 3.2$\times$, the smallest of all five models, suggesting that its
-convolutional operations translate relatively well to the edge hardware.
+roughly 3.2$\times$, the smallest of all five models.
 
 \begin{figure}[ht]
     \centering
     \includegraphics[width=0.85\textwidth]{latency_slowdown.png}
-    \caption{Latency slowdown factor (edge / server) for each model, computed as
+    \caption{Latency increase factor (edge / server) for each model, computed as
     the ratio of average edge latency to average server latency. The dotted line
     at 1$\times$ marks the baseline of no slowdown. TranAD executes on CPU in
     both environments; all other models execute on GPU.}
     \label{fig:latency_slowdown}
 \end{figure}
 
-Figure~\ref{fig:latency_slowdown} shows the latency slowdown factor for each model
+Figure~\ref{fig:latency_slowdown} shows the latency increase factor for each model
 when moving from the server to the edge device. All models are slower on the edge,
 as expected, but the degree of degradation varies substantially across architectures
 and does not follow the MAC count ranking.
 
-TimesNet \citep{timesnet2023} degrades the least, with a slowdown factor of only
+TimesNet \citep{timesnet2023} degrades the least, with a increase factor of only
 3.2$\times$. This is the smallest penalty of any model despite TimesNet being the
 slowest model in absolute terms on both platforms. The result suggests that
 TimesNet's 2D convolutional operations, while computationally expensive, translate
 relatively efficiently to the edge hardware.
 
-Anomaly Transformer \citep{anomalytransformer2022} follows with a slowdown of
+Anomaly Transformer \citep{anomalytransformer2022} follows with a a latency 
+increase factor of
 4.1$\times$, the second most graceful degradation. Its fixed architecture and
 consistent MAC count across datasets appear to result in predictable and moderate
-scaling behaviour across hardware environments.
+scaling behaviour across hardware environments. (On the server environment, Anomaly 
+Transformer was evaluated using the standard batch size of 128, while on the edge 
+device it was executed at a reduced batch size due to memory constraints, and the 
+reported latency increase reflects this deployment setting.)
 
-ModernTCN \citep{moderntcn2024} incurs a 6.0$\times$ slowdown. While it remains
+ModernTCN \citep{moderntcn2024} incurs a 6.0$\times$ latency increase. While it remains
 the fastest model in absolute latency on both platforms, the penalty is larger than
 one might expect for a lightweight convolutional model, suggesting that some of its
 efficiency advantage on the server is tied to GPU parallelism that is less available
 on the edge device.
 
-TranAD \citep{tranad2022} shows a 9.9$\times$ slowdown --- the second largest ---
+TranAD \citep{tranad2022} shows a 9.9$\times$ latency increase --- the second largest ---
 which is particularly notable given that it already runs on the CPU on the server.
 The result indicates that the edge device's CPU is substantially less capable than
 the server CPU, amplifying the cost of CPU-only execution in a constrained
 environment.
 
-GTA \citep{gta2022} exhibits by far the largest slowdown at 13.8$\times$,
+GTA \citep{gta2022} exhibits by far the largest latency increase at 13.8$\times$,
 confirming that its persistent graph construction overhead does not scale well to
 constrained hardware. Combined with its already high absolute latency on the server,
 this makes GTA the least suitable model for edge deployment among those evaluated.
@@ -2401,11 +2412,11 @@ this makes GTA the least suitable model for edge deployment among those evaluate
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\cleardoublepage
-\appendix
-\chapter{The Technical Details}
+%\cleardoublepage
+%\appendix
+%\chapter{The Technical Details}
 
-\todo{\dots}
+%\todo{\dots}
 
 \end{document}
 
