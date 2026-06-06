@@ -1,32 +1,15 @@
-"""
-AnomalyTransformer SMAP — Signal vs Reconstruction Plot
-========================================================
-Inputs
-------
-DATA_FILE      : SMAP_test.npy
-LABEL_FILE     : SMAP_test_label.npy
-SCORES_FILE    : scores_AnomalyTransformer_SMAP_loss.npy   (per-timestep, 427600)
-THRESHOLD_FILE : (threshold stored in solver — hardcode value below)
-RECON_FILE     : test_output.npy                           (427600 x 25)
-
-Note: AnomalyTransformer saves 427600 timesteps (17 short). All files are
-padded to 427617 with zeros/NaN at the tail.
-
-Output
-------
-smap_anomalytransformer_signal_recon.png
-"""
-
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from matplotlib.gridspec import GridSpec
 
 # ── USER CONFIG ───────────────────────────────────────────────────────────────
 
 DATA_FILE      = "/home/fzf/dev/TSAD/datasets/SMAP/SMAP_test.npy"
 LABEL_FILE     = "/home/fzf/dev/TSAD/datasets/SMAP/SMAP_test_label.npy"
+PRED_FILE      = "/home/fzf/dev/TSAD/Anomaly-Transformer/scores_AnomalyTransformer_SMAP_predictions_raw.npy"
 SCORES_FILE    = "/home/fzf/dev/TSAD/Anomaly-Transformer/scores_AnomalyTransformer_SMAP_loss.npy"
 RECON_FILE     = "/home/fzf/dev/TSAD/Anomaly-Transformer/scores_AnomalyTransformer_SMAP_test_output.npy"
 THRESHOLD_FILE = "/home/fzf/dev/TSAD/Anomaly-Transformer/scores_AnomalyTransformer_SMAP_threshold.npy"
@@ -45,19 +28,15 @@ labels = np.load(LABEL_FILE).astype(int)
 n_ts   = len(labels)
 
 def load_and_pad(path, n_ts):
-    """Load array and zero-pad tail to match n_ts if needed."""
     arr = np.load(path)
     if len(arr) < n_ts:
         arr = np.pad(arr, [(0, n_ts - len(arr))] + [(0,0)] * (arr.ndim - 1))
     return arr
 
-scores = load_and_pad(SCORES_FILE, n_ts).astype(float)
-recon  = load_and_pad(RECON_FILE,  n_ts).astype(np.float32)
-
-if THRESHOLD_FILE:
-    threshold = float(np.load(THRESHOLD_FILE)[0])
-else:
-    threshold = float(np.percentile(scores, 99))  # fallback
+pred      = load_and_pad(PRED_FILE,   n_ts).astype(int)
+scores    = load_and_pad(SCORES_FILE, n_ts).astype(float)
+recon     = load_and_pad(RECON_FILE,  n_ts).astype(np.float32)
+threshold = float(np.load(THRESHOLD_FILE)[0])
 print(f"threshold: {threshold:.6f}")
 
 # ── SLICE WINDOW ──────────────────────────────────────────────────────────────
@@ -66,6 +45,7 @@ t      = np.arange(G_START, G_END + 1)
 signal = data[G_START:G_END+1, 0].astype(float)
 rec    = recon[G_START:G_END+1, 0]
 gt     = labels[G_START:G_END+1]
+pr     = pred[G_START:G_END+1]
 sc     = scores[G_START:G_END+1]
 
 # ── FIGURE ────────────────────────────────────────────────────────────────────
@@ -74,38 +54,39 @@ fig = plt.figure(figsize=(16, 10))
 gs  = GridSpec(3, 1, figure=fig, hspace=0.08)
 
 fig.suptitle(
-    f"SMAP — AnomalyTransformer  |  Global timesteps {G_START:,}–{G_END:,}\n"
-    "Red = ground truth anomaly  |  Green = reconstruction  |  Orange = error",
-    fontsize=12, fontweight="bold"
+    f"SMAP — AnomalyTransformer  |  Global timesteps {G_START:,}–{G_END:,}\n",
+    fontsize=16, fontweight="bold"
 )
 
-# Panel 1: signal + ground truth
+# Panel 1: signal + ground truth only
 ax1 = fig.add_subplot(gs[0])
 ax1.plot(t, signal, color=WONG["black"], lw=0.9, zorder=4, label="Input signal")
 ax1.fill_between(t, signal.min(), signal.max(), where=gt.astype(bool),
                  color=WONG["vermillion"], alpha=0.30, zorder=2, step="post")
 ax1.set_xlim(G_START, G_END)
-ax1.set_ylabel("Value", fontsize=9)
-ax1.set_title("Signal with ground truth anomalies", fontsize=9, pad=4)
+ax1.set_ylabel("Value", fontsize=12)
+ax1.set_title("Signal with ground truth anomalies", fontsize=12, pad=4)
 ax1.tick_params(labelbottom=False, labelsize=8)
 ax1.spines[["top", "right"]].set_visible(False)
-ax1.legend(loc="upper right", fontsize=8, framealpha=0.8)
+ax1.legend(loc="upper right",bbox_to_anchor=(1.10, 0.95), fontsize=10, framealpha=0.8)
 
-# Panel 2: signal vs reconstruction
+# Panel 2: signal vs reconstruction + AnomalyTransformer detections
 ax2 = fig.add_subplot(gs[1], sharex=ax1)
 ax2.plot(t, signal, color=WONG["black"], lw=0.9, zorder=4, label="Input signal")
 ax2.plot(t, rec,    color=WONG["green"], lw=0.9, zorder=3, alpha=0.85,
          label="Reconstruction", ls="--")
 ax2.fill_between(t, signal.min(), signal.max(), where=gt.astype(bool),
-                 color=WONG["vermillion"], alpha=0.15, zorder=2, step="post")
+                 color=WONG["vermillion"], alpha=0.20, zorder=2, step="post")
+ax2.fill_between(t, signal.min(), signal.max(), where=pr.astype(bool),
+                 color=WONG["sky_blue"], alpha=0.35, zorder=3, step="post")
 ax2.set_xlim(G_START, G_END)
-ax2.set_ylabel("Value", fontsize=9)
-ax2.set_title("Signal vs AnomalyTransformer reconstruction", fontsize=9, pad=4)
+ax2.set_ylabel("Value", fontsize=12)
+ax2.set_title("Signal vs AnomalyTransformer reconstruction", fontsize=12, pad=4)
 ax2.tick_params(labelbottom=False, labelsize=8)
 ax2.spines[["top", "right"]].set_visible(False)
-ax2.legend(loc="upper right", fontsize=8, framealpha=0.8)
+ax2.legend(loc="upper right", bbox_to_anchor=(1.10, 0.97), fontsize=10, framealpha=0.8)
 
-# Panel 3: reconstruction error + threshold
+# Panel 3: reconstruction error + threshold + AnomalyTransformer detections
 ax3 = fig.add_subplot(gs[2], sharex=ax1)
 ax3.plot(t, sc, color=WONG["orange"], lw=0.8, zorder=3, label="Reconstruction error")
 ax3.axhline(threshold, color=WONG["vermillion"], lw=1.2, ls="--", zorder=4,
@@ -114,13 +95,23 @@ ax3.fill_between(t, 0, sc, where=(sc > threshold),
                  color=WONG["vermillion"], alpha=0.30, zorder=2)
 ax3.fill_between(t, 0, sc.max(), where=gt.astype(bool),
                  color=WONG["vermillion"], alpha=0.10, zorder=1, step="post")
+ax3.fill_between(t, 0, sc.max(), where=pr.astype(bool),
+                 color=WONG["sky_blue"], alpha=0.25, zorder=2, step="post")
 ax3.set_xlim(G_START, G_END)
-ax3.set_ylabel("Error", fontsize=9)
-ax3.set_xlabel("Global timestep", fontsize=9)
-ax3.set_title("Reconstruction error vs threshold", fontsize=9, pad=4)
+ax3.set_ylabel("Error", fontsize=12)
+ax3.set_xlabel("Global timestep", fontsize=12)
+ax3.set_title("Reconstruction error vs threshold", fontsize=12, pad=4)
 ax3.tick_params(labelsize=8)
 ax3.spines[["top", "right"]].set_visible(False)
-ax3.legend(loc="upper right", fontsize=8, framealpha=0.8)
+ax3.legend(loc="upper right", bbox_to_anchor=(1.10, 0.95), fontsize=10, framealpha=0.8)
+
+# Shared legend
+handles = [
+    mpatches.Patch(color=WONG["vermillion"], alpha=0.4, label="Ground truth anomaly"),
+    mpatches.Patch(color=WONG["sky_blue"],   alpha=0.5, label="AnomalyTran reported anomaly"),
+]
+fig.legend(handles=handles, loc="upper right", fontsize=10,
+           framealpha=0.85, bbox_to_anchor=(0.99, 0.99))
 
 plt.savefig(OUTPUT_FILE, dpi=300, bbox_inches="tight")
 print(f"Saved: {OUTPUT_FILE}")
