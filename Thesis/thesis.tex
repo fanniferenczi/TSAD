@@ -25,7 +25,7 @@
 \usepackage{multirow}
 \usepackage{makecell}
 \usepackage{soul}
-\usepackage{siunitx}   % add to preamble if not already present
+\usepackage{siunitx} 
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{makecell}
@@ -58,8 +58,6 @@
 
 \todo{in English\dots}
 
-\chapter*{Acknowledgments}
-\addcontentsline{toc}{chapter}{Acknowledgments}
 
 \todo{\dots}
 
@@ -167,28 +165,12 @@ Temporal anomalies can be compared against neighbouring points (\textit{local}) 
  
     \item \textbf{Seasonal anomaly:}
     An unusual seasonality pattern despite otherwise normal shape and trend --- the frequency of rises and drops in a specific segment differs from the expected seasonal cycle.
-    Detected via:
-    \begin{equation}
-        \mathrm{diss}_s(S,\, \hat{S}) > \theta
-        \label{eq:seasonal}
-    \end{equation}
-    where $S$ is the observed seasonality, $\hat{S}$ is the expected seasonality, and $\mathrm{diss}_s$ measures their dissimilarity.
  
     \item \textbf{Trend anomaly:}
     A permanent shift in the data's mean that alters the slope of the time series, while preserving its cycle and seasonality (e.g., a metric that rises abruptly and then drops following an external event).
-    Detected via:
-    \begin{equation}
-        \mathrm{diss}_t(T,\, \hat{T}) > \theta
-        \label{eq:trend}
-    \end{equation}
  
     \item \textbf{Shapelet anomaly:}
     A subsequence whose shape or cycle pattern differs distinctly from the rest of the series (e.g., unusual economic fluctuation patterns due to demand-supply shocks).
-    Detected via:
-    \begin{equation}
-        \mathrm{diss}_c(C,\, \hat{C}) > \theta
-        \label{eq:shapelet}
-    \end{equation}
  
 \end{itemize}
  
@@ -230,7 +212,7 @@ Before the widespread adoption of deep learning, TSAD relied on several classica
     \item \textbf{Clustering-based methods:} Learn a normal profile of time series windows and 
     use the distance to the centroid of normal clusters as an anomaly score, or identify clusters 
     with few members as anomalous \citep{darban2024survey}. More recent methods in this 
-    category first cluster data to obtain a representation of normal behaviour and then compute 
+    category first cluster the data to obtain a representation of normal behaviour and then compute 
     the distance to this normal behaviour to detect anomalies \citep{boniol2023trends}.
     \item \textbf{Distance-based methods:} Use the distance from a time window to its nearest 
     neighbours as an anomaly score \citep{darban2024survey}. A prominent example is 
@@ -262,7 +244,7 @@ A range of deep architectures has been explored for anomaly detection, including
     modelling of long-term dependencies. Notable models in this category include LSTM-AD 
     \citep{malhotra2015lstm}, which uses hierarchical recurrent layers for unsupervised anomaly 
     detection in univariate time series, and LSTM-NDT \citep{hundman2018detecting}, which 
-    combines LSTM with nonparametric dynamic thresholding for spacecraft anomaly detection. 
+    combines LSTM with Nonparametric Dynamic Thresholding (NDT) \citep{hundman2018ndt}  for spacecraft anomaly detection. 
     GRU \citep{cho2014properties} offers a simpler gating structure than LSTM, leading to faster training times while 
     retaining the ability to capture temporal dependencies \citep{darban2024survey}.
 
@@ -291,7 +273,7 @@ A range of deep architectures has been explored for anomaly detection, including
     \citep{darban2024survey}. VAEs extend this framework by encoding inputs as 
     distributions rather than single points, enabling probabilistic anomaly scoring. 
     OmniAnomaly \citep{su2019robust} uses a VAE with stochastic RNNs for robust 
-    representations of multivariate data and applies POT \citep{siffer2017pot} for thresholding. USAD 
+    representations of multivariate data and applies Peaks-Over-Threshold (POT) \citep{siffer2017pot} for thresholding. USAD 
     \citep{audibert2020usad} employs adversarially trained AEs to amplify reconstruction 
     errors and distinguish anomalies more reliably. RANSynCoders \citep{abdulaal2021practical} 
     proposes an architecture with multiple encoders and decoders using random feature 
@@ -334,9 +316,7 @@ A range of deep architectures has been explored for anomaly detection, including
 \end{itemize}
  
 Deep TSAD models process inputs either point-by-point or using sliding windows, and output either continuous anomaly scores or binary labels \citep{darban2024survey}.
-Common thresholding methods applied to anomaly scores include 
-Nonparametric Dynamic Thresholding (NDT) \citep{hundman2018ndt} 
-and Peaks-Over-Threshold (POT) \citep{siffer2017pot}.
+Common thresholding methods applied to anomaly scores include NDT \citep{hundman2018ndt} and POT \citep{siffer2017pot}.
  
 \subsubsection{Learning Schemes}
  
@@ -394,6 +374,9 @@ Hybrid models integrate the strengths of multiple approaches --- for example, co
 This allows the model to simultaneously benefit from prediction accuracy and latent space regularity \citep{darban2024survey}.
 
 
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \chapter{Chosen Models}
@@ -415,23 +398,21 @@ while their different internal designs --- TimesNet's 2D transformation versus M
 large-kernel depthwise convolution --- make the comparison informative about what drives 
 CNN performance in TSAD.
 
-TranAD \citep{tranad2022} was selected as a representative of the Transformer-based 
-family, providing an architectural contrast to the two CNN-based models. Beyond 
-detection accuracy, TranAD proved particularly compelling because of its efficiency 
-profile: it demonstrated competitive inference speed and low memory footprint alongside 
-strong F1 scores, making it a strong candidate for resource-constrained edge deployment. 
-This combination of accuracy and efficiency motivated a deeper investigation into 
-Transformer-based models, leading to the selection of two additional candidates.
+TranAD \citep{tranad2022} was selected as a representative of the Transformer-based
+family, providing an architectural contrast to the two CNN-based models. Beyond
+detection accuracy, TranAD was included for its efficiency-oriented design: its
+compact encoder-decoder architecture make it a promising
+candidate for resource-constrained edge deployment.
 
-Anomaly Transformer \citep{anomalytransformer2022} was selected because its authors 
-reported higher detection accuracy than TranAD across several benchmarks, making it a 
+Anomaly Transformer \citep{anomalytransformer2022} was selected because it shows 
+higher detection accuracy than TranAD across several benchmarks, making it a 
 natural next candidate within the Transformer family. Its association discrepancy 
 criterion --- which measures how a time point's attention distributes across the series 
 rather than how poorly it is reconstructed --- represents a fundamentally different 
 detection philosophy from TranAD's adversarial reconstruction amplification, making the 
 comparison between the two architecturally and methodologically interesting.
 
-GTA \citep{gta2022} was selected because it was explicitly designed for IoT sensor 
+GTA \citep{gta2022} is a model designed for IoT sensor 
 data, which is directly relevant to the edge deployment focus of this thesis. Its 
 graph-based architecture learns the dependency structure between sensors end-to-end, 
 making it the only model in the evaluation set to explicitly model inter-sensor 
@@ -529,10 +510,10 @@ reconstruction error exceeds a threshold.
 
 ModernTCN \citep{moderntcn2024} is a pure convolution-based backbone for general
 time series analysis. Like
-TimesNet, it targets five mainstream time series analysis tasks simultaneously ---
-short- and long-term forecasting, imputation, classification, and anomaly detection --- but takes a
+TimesNet, it targets five mainstream time series analysis tasks simultaneously (
+short- and long-term forecasting, imputation, classification, and anomaly detection) but takes a
 fundamentally different approach: rather than transforming the time series into 2D
-space, ModernTCN stays in 1D and instead modernises the convolution operation itself
+space, ModernTCN instead modernises the convolution operation itself
 \citep{moderntcn2024}. In the context of this thesis, it is evaluated strictly as an
 anomaly detection model.
 
@@ -582,7 +563,7 @@ three components that each handle a distinct type of information mixing
     \label{fig:moderntcn_block}
 \end{figure}
 
-The first component, \textbf{DWConv}, is a depthwise convolution with a large kernel
+The first component, \textbf{DWConv}, is a depthwise convolution \citep{howard2017mobilenets} with a large kernel
 --- by default size 51 --- applied independently per channel along the temporal
 dimension. This is the component responsible for capturing temporal dependencies, and
 the large kernel is what gives ModernTCN its wide effective receptive field. Each
@@ -604,22 +585,6 @@ ModernTCN applies the same \textbf{reconstruction-based} strategy as TimesNet fo
 anomaly detection. The model is trained to reconstruct normal input windows, and
 anomalies are flagged at inference time based on reconstruction error exceeding a
 threshold.
-
-\subsection{Relation to TimesNet}
-
-Since both ModernTCN and TimesNet are CNN-based task-general backbones evaluated on
-the same benchmarks, a brief comparison is useful. Both models successfully enlarge the
-effective receptive field beyond traditional TCNs, but they do so in different ways.
-TimesNet reshapes the 1D series into 2D tensors to exploit 2D convolutional kernels from
-computer vision, while ModernTCN stays in 1D and instead enlarges the kernel of the
-depthwise convolution directly. The authors of ModernTCN note that the 2D
-transformation in TimesNet disrupts the locality of the receptive field --- adjacent
-time points can end up separated after reshaping --- whereas ModernTCN maintains a
-contiguous, locally-focused receptive field that expands smoothly outward from each
-time point \citep{moderntcn2024}. In terms of efficiency, ModernTCN is reported to
-reduce training time by approximately 57\% compared to TimesNet on the anomaly
-detection benchmarks, while achieving comparable or better F1 scores
-\citep{moderntcn2024}.
 
 
 \section{TranAD}
@@ -692,7 +657,7 @@ the loss function uses an \textbf{evolving weight} that starts by emphasising pu
 reconstruction and gradually shifts weight towards the adversarial objective as the
 reconstructions improve \citep{tranad2022}.
 
-Additionally, TranAD incorporates \textbf{model-agnostic meta-learning} (MAML)
+Additionally, TranAD incorporates \textbf{model-agnostic meta-learning}
 \citep{finn2017maml}, which performs an additional gradient update at the end of each
 epoch to help the model generalise quickly from limited training data. The authors
 report that this component is particularly important when only a fraction of the
@@ -703,7 +668,7 @@ normal training data is available \citep{tranad2022}.
 TranAD is a \textbf{reconstruction-based} model. At inference time, the anomaly
 score for each window is defined as the average of the reconstruction errors from
 the two phases. A timestamp is flagged as anomalous when this score exceeds a
-threshold determined automatically using Peaks-Over-Threshold (POT)
+threshold determined automatically using POT
 \citep{siffer2017pot}. A timestamp is labelled anomalous if any of its $m$ dimensions
 exceeds the threshold, which also enables \textbf{anomaly diagnosis} --- identifying
 which specific sensor or variable is responsible for the anomaly.
@@ -811,21 +776,6 @@ inference time, each time point receives a scalar anomaly score combining its
 reconstruction error and its normalised association discrepancy. A time point is
 flagged as anomalous when this score exceeds a threshold, determined from the
 validation set by selecting the proportion of data to label as anomalous
-\citep{anomalytransformer2022}.
-
-\subsection{Relation to TranAD}
-
-Both Anomaly Transformer and TranAD are Transformer-based models designed exclusively
-for anomaly detection, trained without labels, and relying on reconstruction error as
-part of their anomaly criterion. Their key difference lies in how they go beyond
-simple reconstruction. TranAD introduces adversarial training to amplify reconstruction
-errors directly \citep{tranad2022}, while Anomaly Transformer introduces a
-complementary association-based criterion that captures a structurally different
-signal: not how much the reconstruction fails, but how the model's attention
-distributes across time. Furthermore, TranAD conditions its second decoding phase on
-the first-phase reconstruction error, whereas Anomaly Transformer has no such
-sequential phasing --- it processes the full window in a single forward pass per
-layer, producing the association discrepancy and reconstruction jointly
 \citep{anomalytransformer2022}.
 
 
@@ -1222,6 +1172,8 @@ backlog.
 
 \section{Datasets}
 
+The statistics of the 5 selected datasets are provided in Table~\ref{tab:dataset_stats}.
+
 \paragraph{Server Machine Dataset (SMD).}
 
 The Server Machine Dataset (SMD) \cite{su2019smd} is a real-world multivariate time series dataset
@@ -1280,6 +1232,7 @@ of the test set time steps are labelled anomalous.
 \begin{table}[ht]
 \centering
 \caption{Dataset Statistics}
+\label{tab:dataset_stats}
 \begin{tabular}{llrrrrrr}
 \toprule
 \textbf{Dataset} & \textbf{Domain} & \textbf{Dim.} 
@@ -1481,10 +1434,10 @@ AU-PR exposes differences between models that point-adjusted F1 alone would conc
 \end{figure}
 
 Figure~\ref{fig:cm_tranad_swat} shows the confusion matrix for TranAD on SWaT. 
-Out of the total anomalous points in the test set, only 223 
-are flagged as anomalous (true positives), while 421 are missed entirely (false negatives). At 
-the same time, only 1 normal point is incorrectly flagged as anomalous (false positive), and 
-4,355 normal points are correctly identified as normal (true negatives).
+Out of the total anomalous points in the test set, only 4.5\% 
+are flagged as anomalous (true positives), while 8.4\%  are missed entirely (false negatives). At 
+the same time, only 1 normal point (0.0002\%) is incorrectly flagged as anomalous (false positive), and 
+87.1\%  normal points are correctly identified as normal (true negatives).
 
 TranAD almost never raises a false alarm (only 1 false positive), but as a consequence misses 
 nearly two thirds of all anomalous points at the point level. It is important to note that 
@@ -1493,6 +1446,124 @@ protocol, any anomaly segment in which at least one point is correctly flagged i
 fully detected \citep{su2019smd}, which substantially changes the effective recall and explains 
 why the PA F1 reported in Table~\ref{tab:accuracy} is considerably higher than these raw counts 
 would suggest.
+
+\subsubsection{Missed Detections on SMAP}
+
+On the SMAP dataset, the two CNN-based models perform considerably worse than 
+the transformer-based models, with TimesNet achieving an F1 of 68.47\% and ModernTCN 
+67.46\%, compared to Anomaly Transformer's 96.41\% which achieved the highest score. 
+As shown in Table~\ref{tab:accuracy}, the primary driver of this gap is recall: TimesNet 
+and ModernTCN achieve only 55.44\% and 53.85\% respectively, indicating that 
+both models miss roughly half of all true anomaly segments. To illustrate 
+concretely where this difference originates, Figure~\ref{fig:smap_cnn_recon}, and \ref{fig:smap_anomalytransformer_recon} show 
+the same stretch of the SMAP test set (global timesteps 371,000--393,000) for all 
+three models. This segment contains five consecutive ground truth anomaly windows 
+(orange) that are missed entirely by both CNN-based models but successfully 
+detected by Anomaly Transformer.
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\textwidth]{smap_timesnet_signal_recon.png}
+    \vspace{0.5em}
+    \includegraphics[width=\textwidth]{smap_moderntcn_signal_recon.png}
+    \caption{Reconstruction error visualisation for TimesNet (top) and ModernTCN 
+    (bottom) on SMAP. For each model, the 
+    three panels show: the input signal with ground truth anomaly windows 
+    (orange); the input signal versus the model reconstruction (dashed green); 
+    and the per-timestep reconstruction error aggregated across all 25 channels 
+    versus the decision threshold (dashed orange). Blue shading indicates 
+    timesteps flagged as anomalous by each model.}
+    \label{fig:smap_cnn_recon}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{smap_anomalytransformer_signal_recon.png}
+    \caption{Anomaly Transformer on SMAP. 
+    The three panels show: the input signal with ground truth anomaly windows 
+    (orange); the input signal versus the reconstruction (dashed green); and 
+    the per-timestep anomaly score --- combining reconstruction error and 
+    association discrepancy --- versus the decision threshold 
+    (dashed orange). Blue shading indicates timesteps flagged as anomalous.}
+    \label{fig:smap_anomalytransformer_recon}
+\end{figure}
+
+\paragraph{Anomaly scoring and threshold.}
+All three models are trained on normal data only using MSE as the training loss, 
+and all three follow the same threshold protocol: $\delta$ is determined to make 
+$r = 1\%$ of the validation scores exceed it \citep{anomalytransformer2022}. 
+However, their anomaly scores are computed differently.
+
+TimesNet and ModernTCN both use plain reconstruction error as their anomaly 
+criterion \citep{timesnet2023, moderntcn2024}. The per-timestep score is the MSE 
+between the input and reconstruction averaged across all $d$ channels:
+
+\begin{equation}
+    s_t = \frac{1}{d} \sum_{i=1}^{d} \left( x_t^{(i)} - \hat{x}_t^{(i)} \right)^2
+    \label{eq:recon_score}
+\end{equation}
+
+This yields thresholds of $\delta = 0.4787$ for TimesNet and $\delta = 5.8932$ 
+for ModernTCN. The difference in absolute threshold values reflects the different 
+internal score scales of the two models, not a difference in strictness --- both 
+are calibrated to flag the same proportion of validation points.
+
+Anomaly Transformer uses a fundamentally different anomaly score that combines 
+reconstruction error with an association discrepancy term 
+\citep{anomalytransformer2022}.
+
+\begin{equation}
+    \text{AnomalyScore}(\mathcal{X}) = \text{Softmax}(-\text{AssDis}(P, S; 
+    \mathcal{X})) \odot \left[\|X_{i,:} - \hat{X}_{i,:}\|_2^2\right]_{i=1,\cdots,N}
+    \label{eq:anomaly_transformer_score}
+\end{equation}
+
+The association discrepancy measures how differently a time point attends to the 
+rest of the series compared to what would be expected under normal conditions. 
+Normal points tend to concentrate their attention on temporally adjacent points, 
+following a Gaussian prior. Anomalous points, which do not share patterns with 
+their neighbours, deviate from this prior, producing a large discrepancy. 
+Multiplying this with the reconstruction error means that even when the 
+reconstruction error alone is low, the association discrepancy can still elevate 
+the anomaly score, giving the model sensitivity to anomalies that a purely 
+reconstruction-based approach would miss \citep{anomalytransformer2022}. 
+This yields a threshold of $\delta = 0.0012$ for Anomaly Transformer.
+
+\paragraph{Analysis of the visualisations.}
+Figure~\ref{fig:smap_cnn_recon} and 
+\ref{fig:smap_anomalytransformer_recon} show the input signal, reconstruction, 
+and anomaly score relative to the decision threshold for all three models over 
+the same segment of the SMAP test set. Note that while the plots display a single 
+representative channel, the reconstruction error shown in the bottom panel is 
+aggregated across all 25 SMAP channels simultaneously, meaning that the score 
+at any given timestep reflects the combined reconstruction quality across the 
+entire multivariate signal.
+
+For both TimesNet and ModernTCN, the reconstruction error remains well below 
+the threshold throughout the five consecutive ground truth anomaly segments 
+(orange), including the large oscillation amplitude change around timesteps 
+383,000--386,000. The green dashed reconstruction closely follows the input 
+signal during this period, suggesting that both models reconstruct the anomalous 
+pattern sufficiently well that it does not produce a detectable increase in MSE. 
+Brief threshold crossings are visible at sharp signal transitions, 
+but these spikes are narrow and do not correspond 
+to the labelled anomaly windows. This is because the spike anomalies are very 
+short in duration: even when a few timesteps are poorly reconstructed, their 
+contribution to the MSE is averaged over the entire 100-timestep window and 
+further diluted across all 25 channels, resulting in an aggregate error that 
+does not reliably exceed the threshold.
+
+The Anomaly Transformer plot presents a markedly different picture. The threshold 
+of $\delta = 0.0012$ is extremely low relative to the score range, and the 
+anomaly score crosses it frequently throughout the segment, producing many short, 
+regularly-spaced detections in both normal and anomalous regions. As a result, 
+at least one timestep within each of the five ground truth anomaly windows is 
+flagged, and under the point-adjust protocol each window is therefore credited 
+as fully detected. This behaviour is consistent with the known tendency of 
+point-adjusted F1 to overestimate detection performance when a model flags 
+anomalies at a high base rate \citep{darban2024carla}, and is reflected in 
+Anomaly Transformer's modest AU-PR on SMAP (12.90\%) relative to its F1 
+(96.41\%).
 
 
 
@@ -2120,7 +2191,7 @@ second-highest \underline{underlined}.}
     & \thead{\textbf{AnomTr.}\\\citep{anomalytransformer2022}}
     & \thead{\textbf{GTA}\\\citep{gta2022}} \\
 \midrule
-\multirow{5}{*}{\rotatebox[origin=c]{90}{\textbf{Latency (ms)}}}
+\multirow{5}{*}{\rotatebox[origin=c]{90}{\textbf{Latency}}}
 & SMD  & 140.2 & \textbf{6.6}  & \underline{10.2} & 33.0 & 63.2 \\
 & MSL  & 145.0 & \textbf{8.8}  & \underline{16.1} & 33.4 & 69.3 \\
 & SMAP &  42.4 & \underline{12.4} & \textbf{8.2}  & 33.5 & 59.3 \\
@@ -2128,7 +2199,7 @@ second-highest \underline{underlined}.}
 & PSM  &  54.0 & \underline{12.4} & \textbf{8.3}  & 34.5 & 59.7 \\
 & Avg  & 106.6 & \textbf{9.7}  & \underline{10.9} & 33.7 & 64.0 \\
 \midrule
-\multirow{5}{*}{\rotatebox[origin=c]{90}{\textbf{Throughput (s/s)}}}
+\multirow{5}{*}{\rotatebox[origin=c]{90}{\textbf{Throughput}}}
 & SMD  &   912.9 & \textbf{19482.4} & \underline{12598.0} & 3882.0 & 2024.0 \\
 & MSL  &   882.7 & \textbf{14524.5} & \underline{7935.0}  & 3833.0 & 1848.3 \\
 & SMAP & 3022.2 & \underline{10342.3} & \textbf{15519.0} & 3820.2 & 2158.1 \\
