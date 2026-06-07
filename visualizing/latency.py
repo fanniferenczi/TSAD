@@ -52,8 +52,8 @@ for model, values in server.items():
 )
 
 ax.set_title("Server", fontsize=TITLE_SIZE)
-ax.set_xlabel("Latency (ms) ↓", fontsize=LABEL_SIZE)
-ax.set_ylabel("Throughput (samples/s) ↑", fontsize=LABEL_SIZE)
+ax.set_xlabel("Latency (ms) ←", fontsize=LABEL_SIZE)
+ax.set_ylabel("Throughput (samples/s) →", fontsize=LABEL_SIZE)
 ax.tick_params(axis='both', labelsize=TICK_SIZE)
 ax.grid(True, alpha=0.3)
 
@@ -85,8 +85,8 @@ for model, values in edge.items():
     )
 
 ax.set_title("Edge Device", fontsize=TITLE_SIZE)
-ax.set_xlabel("Latency (ms) ↓", fontsize=LABEL_SIZE)
-ax.set_ylabel("Throughput (samples/s) ↑", fontsize=LABEL_SIZE)
+ax.set_xlabel("Latency (ms) ←", fontsize=LABEL_SIZE)
+ax.set_ylabel("Throughput (samples/s) →", fontsize=LABEL_SIZE)
 ax.tick_params(axis='both', labelsize=TICK_SIZE)
 ax.grid(True, alpha=0.3)
 
