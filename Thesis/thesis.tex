@@ -1558,8 +1558,7 @@ detected by Anomaly Transformer.
     \includegraphics[width=\textwidth]{smap_moderntcn_signal_recon.png}
     \caption{Reconstruction error visualisation for TimesNet (top) and ModernTCN 
     (bottom) on SMAP. For each model, the 
-    three panels show: the input signal with ground truth anomaly windows 
-    (orange); the input signal versus the model reconstruction (dashed green); 
+    two panels show: the input signal versus the model reconstruction (dashed green); 
     and the per-timestep reconstruction error aggregated across all 25 channels 
     versus the decision threshold (dashed orange). Blue shading indicates 
     timesteps flagged as anomalous by each model.}
@@ -1570,8 +1569,7 @@ detected by Anomaly Transformer.
     \centering
     \includegraphics[width=\textwidth]{smap_anomalytransformer_signal_recon.png}
     \caption{Anomaly Transformer on SMAP. 
-    The three panels show: the input signal with ground truth anomaly windows 
-    (orange); the input signal versus the reconstruction (dashed green); and 
+    The two panels show: the input signal versus the reconstruction (dashed green); and 
     the per-timestep anomaly score --- combining reconstruction error and 
     association discrepancy --- versus the decision threshold 
     (dashed orange). Blue shading indicates timesteps flagged as anomalous.}
@@ -1595,12 +1593,12 @@ between the input and reconstruction averaged across all $d$ channels:
 
 This yields thresholds of $\delta = 0.4787$ for TimesNet and $\delta = 5.8932$ 
 for ModernTCN. The difference in absolute threshold values reflects the different 
-internal score scales of the two models, not a difference in strictness --- both 
+internal score scales of the two models, not a difference in strictness, both 
 are calibrated to flag the same proportion of validation points.
 
 Anomaly Transformer uses a fundamentally different anomaly score that combines 
 reconstruction error with an association discrepancy term 
-\citep{anomalytransformer2022}.
+\citep{anomalytransformer2022}:
 
 \begin{equation}
     \text{AnomalyScore}(\mathcal{X}) = \text{Softmax}(-\text{AssDis}(P, S; 
