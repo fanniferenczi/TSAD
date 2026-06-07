@@ -60,28 +60,16 @@ sc     = scores[G_START:G_END+1]
 
 # ── FIGURE ────────────────────────────────────────────────────────────────────
 
-fig = plt.figure(figsize=(16, 10))
-gs  = GridSpec(3, 1, figure=fig, hspace=0.08)
+fig = plt.figure(figsize=(16, 7))
+gs  = GridSpec(2, 1, figure=fig, hspace=0.08)
 
 fig.suptitle(
     f"SMAP — TimesNet  |  Global timesteps {G_START:,}–{G_END:,}\n",
     fontsize=16, fontweight="bold"
 )
 
-# Panel 1: signal + ground truth only
-ax1 = fig.add_subplot(gs[0])
-ax1.plot(t, signal, color=WONG["black"], lw=0.9, zorder=4, label="Input signal")
-ax1.fill_between(t, signal.min(), signal.max(), where=gt.astype(bool),
-                 color=WONG["vermillion"], alpha=0.30, zorder=2, step="post")
-ax1.set_xlim(G_START, G_END)
-ax1.set_ylabel("Value", fontsize=12)
-ax1.set_title("Signal with ground truth anomalies", fontsize=12, pad=4)
-ax1.tick_params(labelbottom=False, labelsize=8)
-ax1.spines[["top", "right"]].set_visible(False)
-ax1.legend(loc="upper right", bbox_to_anchor=(1.10, 0.95), fontsize=10, framealpha=0.8)
-
-# Panel 2: signal vs reconstruction + TimesNet detections
-ax2 = fig.add_subplot(gs[1], sharex=ax1)
+# Panel 1: signal vs reconstruction + TimesNet detections
+ax2 = fig.add_subplot(gs[0])
 ax2.plot(t, signal, color=WONG["black"], lw=0.9, zorder=4, label="Input signal")
 ax2.plot(t, rec,    color=WONG["green"], lw=0.9, zorder=3, alpha=0.85,
          label="Reconstruction", ls="--")
@@ -96,8 +84,8 @@ ax2.tick_params(labelbottom=False, labelsize=8)
 ax2.spines[["top", "right"]].set_visible(False)
 ax2.legend(loc="upper right", bbox_to_anchor=(1.10, 0.945), fontsize=10, framealpha=0.8)
 
-# Panel 3: reconstruction error + threshold + TimesNet detections
-ax3 = fig.add_subplot(gs[2], sharex=ax1)
+# Panel 2: reconstruction error + threshold + TimesNet detections
+ax3 = fig.add_subplot(gs[1], sharex=ax2)
 ax3.plot(t, sc, color=WONG["orange"], lw=0.8, zorder=3, label="Reconstruction error")
 ax3.axhline(threshold, color=WONG["vermillion"], lw=1.2, ls="--", zorder=4,
             label=f"Threshold ({threshold:.4f})")
