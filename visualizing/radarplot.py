@@ -1,86 +1,164 @@
-"""
-Radar Chart — Edge Deployment Suitability (Memory & Efficiency)
-Master thesis: Time-Series Anomaly Detection
-
-Axes (all normalized min-max, 0 = most efficient, 1 = least efficient):
-  - Infer Peak Memory (MB)
-  - Parameter Count
-  - Weights (MB)
-  - Activation Overhead (MB)
-  - MACs (avg across datasets, streaming-normalized where applicable)
-  - Latency (ms, avg across datasets)
-
-Note: closer to center = more edge-friendly on that dimension.
-MACs: streaming-normalized for TimesNet & ModernTCN; fvcore total for
-      TranAD, Anomaly Transformer, GTA (streaming incompatible).
-Latency averaged over SMD, MSL, SMAP, SWaT (PSM not available).
-"""
-
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-# ── Raw averages across datasets ───────────────────────────────────────────────
-MODELS = ['TimesNet', 'ModernTCN', 'TranAD', 'Anomaly\nTransformer', 'GTA']
-MODELS_LEGEND = ['TimesNet', 'ModernTCN', 'TranAD', 'Anomaly Transformer', 'GTA']
+# -----------------------------------------------
+# Data
+# -----------------------------------------------
+models = ["TimesNet", "ModernTCN", "TranAD", "AnomTr.", "GTA"]
 
-AXES = [
-    'Infer Peak\nMemory (MB)',
-    'Parameter\nCount',
-    'Weights\n(MB)',
-    'Activation\nOverhead (MB)',
-    'MACs',
-    'Latency\n(ms)',
+data = {
+    #                f1      au-pr   train_mem  inf_mem  latency  throughput  
+    "TimesNet":  [83.87,  18.044,  331.784,  219.81,   340.0,   395.0],
+    "ModernTCN": [83.97,  17.65,   423.286,  171.93,    59.0,  3327.0],
+    "TranAD":    [89.61,  39.322,    2.774,    1.608,   108.0,  1257.0],
+    "AnomTr.":   [94.77,  13.542, 2006.818, 1533.734,  139.0,   461.0],
+    "GTA":       [88.04,  16.672,  841.788,  409.748,  880.0,   147.0],
+}
+
+labels = ["F1 (%)", "AU-PR (%)", "Train Mem (MB)\nInverted scale", "Inf Mem (MB)\nInverted scale", "Latency (ms)\nInverted scale", "Throughput (windows/s)"]
+N = len(labels)
+
+# -----------------------------------------------
+# Per-axis scale definitions
+# axis_min, axis_max, log_scale, invert
+# For inverted axes: higher raw value → lower normalised score (worse)
+# -----------------------------------------------
+axes_cfg = [
+    # (min,    max,     log,   invert, top_pad)  top_pad keeps best-case values off the outer ring
+    (0,       100,     False, False,  0.00),   # F1
+    (0,        40,     False, False,  0.00),   # AU-PR
+    (0,      2100,     False, True,   0.03),   # Train mem  (TranAD≈0 would otherwise touch ring)
+    (0,      1700,     False, True,   0.03),   # Inf mem    (same)
+    (0,      1100,     False, True,   0.00),   # Latency
+    (0,      3400,     False, False,  0.00),   # Throughput
 ]
 
-# Rows = models, columns = axes (same order as AXES)
-RAW = np.array([
-    # Infer peak  Params      Weights   Overhead    MACs          Latency
-    [219.81,      4930957,    19.74,    310.71,     1509074541,     106.5722],  # TimesNet
-    [171.93,       592827,     2.37,    420.87,       15553280,       9.6746],  # ModernTCN
-    [  1.61,       145769,     1.17,      0.95,         974333,      10.9216],  # TranAD
-    [3123.55,     4829861,    18.43,   4296.02,      512317440,      33.7202],  # Anomaly Transformer
-    [ 825.86,      802577,     6.12,    409.75,       30238914,      63.956],  # GTA
-])
+# Per-axis offset for the outermost ring label (r=1.00).
+# Inner rings always use 0.04. Increase a value here if the label sits on the ring.
+outer_offsets = [
+    0.1,   # F1
+    0.04,   # AU-PR
+    0.04,   # Train mem
+    0.1,   # Inf mem
+    0.1,   # Latency
+    0.1,   # Throughput
+]
 
-# ── Min-max normalise (0 = best/most efficient, 1 = worst) ────────────────────
-mins = RAW.min(axis=0)
-maxs = RAW.max(axis=0)
-NORM = (RAW - mins) / (maxs - mins)
+# -----------------------------------------------
+# Normalise each value to [0, 1] on its axis
+# 1 = best (outermost ring), 0 = worst (centre)
+# -----------------------------------------------
+def normalise(value, cfg):
+    vmin, vmax, log, invert, top_pad = cfg
+    if log:
+        v    = np.log10(max(value, vmin))
+        vlo  = np.log10(vmin)
+        vhi  = np.log10(vmax)
+        norm = (v - vlo) / (vhi - vlo)
+    else:
+        norm = (value - vmin) / (vmax - vmin)
+    norm = np.clip(norm, 0, 1)
+    result = (1 - norm) if invert else norm
+    return np.clip(result, 0, 1 - top_pad)
 
-# ── Radar setup ───────────────────────────────────────────────────────────────
-N = len(AXES)
+normed = {}
+for m in models:
+    normed[m] = [normalise(data[m][i], axes_cfg[i]) for i in range(N)]
+
+# -----------------------------------------------
+# Colorblind-friendly palette (Wong 2011)
+# -----------------------------------------------
+colors = ["#0077BB", "#EE7733", "#009988", "#CC3311", "#AA3377"]
+
+# -----------------------------------------------
+# Build radar
+# -----------------------------------------------
 angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
-angles += angles[:1]  # close the polygon
+angles += angles[:1]  # close the loop
 
-MODEL_COLORS = ['#4C72B0', '#DD8452', '#55A868', '#C44E52', '#8172B2']
+fig, ax = plt.subplots(figsize=(7, 7), subplot_kw=dict(polar=True))
 
-fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
-
-for i, (model, color) in enumerate(zip(MODELS, MODEL_COLORS)):
-    values = NORM[i].tolist()
-    values += values[:1]
-    ax.plot(angles, values, color=color, linewidth=2, label=MODELS_LEGEND[i])
-    ax.fill(angles, values, color=color, alpha=0.08)
-
-# ── Gridlines & labels ────────────────────────────────────────────────────────
-ax.set_xticks(angles[:-1])
-ax.set_xticklabels(AXES, fontsize=10.5)
-ax.set_yticks([0.2, 0.4, 0.6, 0.8, 1.0])
-ax.set_yticklabels(['0.2', '0.4', '0.6', '0.8', '1.0'], fontsize=7, color='grey')
+ax.set_yticks([0.25, 0.50, 0.75, 1.00])
+ax.set_yticklabels([])
 ax.set_ylim(0, 1)
+ax.yaxis.grid(True, color="grey", linestyle="--", linewidth=0.5, alpha=0.5)
+ax.xaxis.grid(True, color="grey", linestyle="-", linewidth=0.5, alpha=0.3)
 
-# Annotate centre and edge
-ax.text(0, 0, 'best', ha='center', va='center', fontsize=7, color='grey')
+# Plot each model
+for i, m in enumerate(models):
+    vals = normed[m] + normed[m][:1]
+    ax.plot(angles, vals, color=colors[i], linewidth=2, label=m)
+    ax.fill(angles, vals, color=colors[i], alpha=0.07)
 
-ax.set_title(
-    'Edge Deployment Suitability\n(normalised, lower = more efficient)',
-    fontsize=13, pad=20
+# -----------------------------------------------
+# Axis labels (no scale hints in label — shown as spoke ticks instead)
+# -----------------------------------------------
+ax.set_xticks(angles[:-1])
+ax.set_xticklabels(labels, fontsize=11)
+
+# Per-axis padding (points) between the outermost ring and the axis label.
+label_pads = [
+    30,   # F1
+    15,   # AU-PR
+    20,   # Train mem
+    50,   # Inf mem
+    20,   # Latency
+    20,   # Throughput
+]
+
+for tick, pad in zip(ax.xaxis.get_major_ticks(), label_pads):
+    tick.set_pad(pad)
+
+# -----------------------------------------------
+# Tick annotations on every spoke
+# Show 4 evenly-spaced values at ring positions 0.25 / 0.50 / 0.75 / 1.00
+# For inverted axes reverse-normalise so displayed value decreases outward
+# -----------------------------------------------
+ring_levels = [0.25, 0.50, 0.75, 1.00]
+
+def ring_to_actual(r, cfg):
+    vmin, vmax, log, invert, _ = cfg
+    # r is the normalised ring position (0–1, 1 = outermost = best)
+    # convert back to raw value
+    norm = (1 - r) if invert else r
+    if log:
+        vlo = np.log10(max(vmin, 1e-9))
+        vhi = np.log10(vmax)
+        return 10 ** (vlo + norm * (vhi - vlo))
+    else:
+        return vmin + norm * (vmax - vmin)
+
+# Format helper: integers for large values, 1 decimal for small
+def fmt(v):
+    if v >= 100:
+        return f"{v:.0f}"
+    elif v >= 10:
+        return f"{v:.1f}"
+    else:
+        return f"{v:.2f}"
+
+for axis_idx in range(N):
+    angle = angles[axis_idx]
+    cfg   = axes_cfg[axis_idx]
+    for r in ring_levels:
+        actual = ring_to_actual(r, cfg)
+        offset = outer_offsets[axis_idx] if r == 1.00 else 0.04
+        ax.text(
+            angle, r + offset, fmt(actual),
+            ha="center", va="bottom", fontsize=7.5, color="grey"
+        )
+
+ax.set_title("Model Comparison for Edge Deployment",
+             fontsize=13, fontweight="bold", pad=40)
+
+ax.legend(
+    loc="upper right",
+    bbox_to_anchor=(1.35, 1.15),
+    fontsize=10,
+    framealpha=0.7,
 )
 
-ax.legend(loc='upper right', bbox_to_anchor=(1.32, 1.15),
-          fontsize=9, title='Model', title_fontsize=10)
-
 plt.tight_layout()
-plt.savefig('radar_memory.png', dpi=150, bbox_inches='tight')
+plt.savefig("radar_chart.png", bbox_inches="tight", dpi=300)
 plt.show()

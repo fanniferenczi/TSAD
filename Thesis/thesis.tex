@@ -48,7 +48,7 @@
 {\huge\sf Fanni Ferenczi, 202402635}\\[2ex]
 \noindent\rule{\linewidth}{1mm}\\[4ex]
 \noindent{\Large\sf Master's Thesis, Computer Science\\[1ex] 
-\today \\[1ex] Advisors: Qi Zhang, Gin\'es Carreto Pic\'on\\[15ex]}\\[\fill]}
+\today \\[1ex] Advisors: Qi Zhang, Gin\'es Carreto Pic\'on, Ira Assent\\[15ex]}\\[\fill]}
 \epsfig{file=logo.eps}\clearpage
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -59,7 +59,7 @@
 
 Deep learning models for time series anomaly detection have achieved impressive
 accuracy on benchmark datasets, yet their suitability for deployment on
-resource-constrained IoT edge devices remains poorly understood. This thesis
+resource-constrained IoT edge devices remains underexplored. This thesis
 addresses that gap by benchmarking five deep learning models --- TimesNet,
 ModernTCN, TranAD, Anomaly Transformer, and GTA --- across two complementary
 evaluation axes: detection accuracy and computational efficiency. Each model
@@ -73,7 +73,9 @@ GPU environment and a resource-constrained edge device, providing a direct
 assessment of deployment feasibility under realistic hardware constraints.
 
 The accuracy results show that Anomaly Transformer achieves the highest average
-F1 score, while TranAD leads on AU-PR. Notably, the two
+F1 score, while TranAD leads on AU-PR. A high AU-PR implies that the model is
+robust to threshold choice, performing well across a wide range of decision
+boundaries rather than at a single operating point. Notably, the two
 metrics do not always agree: a model can rank first on F1 while performing near
 the bottom on AU-PR, which reflects the sensitivity of point-adjusted F1 to
 threshold selection. Reporting both metrics together therefore provides a more
@@ -82,9 +84,10 @@ complete picture of detection quality than either metric alone.
 On the efficiency side, the results demonstrate that architectural design choices
 dominate deployment suitability more than any single metric in isolation. TranAD
 emerges as the most memory-efficient and computationally cheapest model, achieving
-competitive latency on both environments despite executing entirely on the CPU due
-to a hardcoded implementation constraint. ModernTCN achieves the best latency and
-throughput on both platforms and presents the most balanced overall profile.
+competitive latency on both environments despite executing entirely on the CPU. 
+ModernTCN achieves the best latency and
+throughput on both server-grade GPU environment and
+resource-constrained edge device and presents the most balanced overall profile.
 Anomaly Transformer's runtime memory demand renders it infeasible on the edge
 device at standard batch sizes. GTA, despite being designed explicitly for IoT
 settings, incurs the highest edge latency of all five models.
@@ -94,11 +97,11 @@ simultaneously. For deployments where memory is the binding constraint, TranAD
 is the recommended choice. Where latency and throughput take priority, ModernTCN
 offers the strongest overall profile.
 
-\vspace{2ex}
-\begin{flushright}
-  \emph{Fanni Ferenczi,}\\
-  \emph{Aarhus, \today.}
-\end{flushright}
+%\vspace{2ex}
+%\begin{flushright}
+%  \emph{Fanni Ferenczi,}\\
+%  \emph{Aarhus, \today.}
+%\end{flushright}
 
 \tableofcontents
 \cleardoublepage
@@ -111,7 +114,8 @@ offers the strongest overall profile.
 \label{ch:intro}
 
 Time-series anomaly detection is critical for IoT systems, enabling predictive
-maintenance, security monitoring, and system optimisation across a wide range of
+maintenance \citep{choi2021deeplearning}, security monitoring \citep{jeffrey2023review},
+and system optimisation \citep{sgueglia2022iot} across a wide range of
 cyber-physical applications. While recent deep learning
 models achieve impressive accuracy on benchmark datasets, they face significant
 challenges in real-world IoT deployments. Edge devices operate under strict resource
@@ -121,12 +125,19 @@ the existing literature: research predominantly optimises for detection accuracy
 while IoT deployments require balancing accuracy with practical constraints such as
 computational efficiency, inference latency, and memory footprint.
 
-This thesis addresses this gap by benchmarking five deep learning models for
+This thesis addresses this gap by asking: how do models that achieve high accuracy
+on benchmark datasets perform when evaluated against metrics that matter for IoT
+edge deployment --- memory footprint, arithmetic cost, and inference speed on
+constrained hardware? The goal is not only to rank models on accuracy, but to
+understand what architectural properties make a model suitable or unsuitable for
+real-world edge deployment.
+
+This thesis aims to answer this question by benchmarking five deep learning models for
 multivariate time series anomaly detection with an explicit focus on their
-suitability for IoT edge deployment. The five models --- TimesNet
+suitability for IoT edge deployment. The five selected models --- TimesNet
 \citep{timesnet2023}, ModernTCN \citep{moderntcn2024}, TranAD \citep{tranad2022},
 Anomaly Transformer \citep{anomalytransformer2022}, and GTA \citep{gta2022} ---
-were selected to represent a diverse range of architectures, spanning
+represent a diverse range of architectures, spanning
 convolutional, transformer-based, and graph-based approaches. Each model is
 evaluated on five widely adopted benchmark datasets across two complementary axes:
 detection accuracy, measured through point-adjusted F1 score and AU-PR, and
@@ -136,15 +147,6 @@ resource-constrained edge device. By examining how different model architectures
 perform under IoT constraints, this work aims to develop insights into why certain
 models are more suitable for constrained environments than others, and to provide
 practical guidance for model selection in real-world deployment settings.
-
-The thesis is structured as follows. Chapter~\ref{ch:intro} introduces the
-problem of time series anomaly detection and the relevant background on deep
-learning architectures and evaluation metrics. Chapter~2 describes the five
-models evaluated in this thesis, covering their architectural design and anomaly
-detection approach. Chapter~3 presents the experimental setup, datasets, and
-results across both accuracy and efficiency dimensions. Chapter~4 concludes the
-thesis with a summary of findings, a deployment recommendation, and directions
-for future work.
 
 \section{Anomalies in Time Series}
 The detection of anomalies --- also referred to as outlier or novelty detection --- has been an active area of research across numerous application domains since the 1960s \citep{darban2024survey}.
@@ -183,7 +185,7 @@ Formally, an MTS with $d$ dimensions over $t$ timestamps is represented as:
 \noindent where $x_i^j$ denotes the observation of the $j$-th dimension at time $i$, and $d$ is the total number of dimensions \citep{darban2024survey}.
 
 
-\subsection{Anomalies in Time Series}
+\subsection{Types of Anomalies}
 
 An \textbf{anomaly} refers to a deviation from the general distribution of data --- either a single observation (\textit{point anomaly}) or a series of observations (\textit{subsequence anomaly}) that deviates significantly from the norm.
 In real-world data, anomalies constitute only a small fraction of observations; the dataset mostly follows a normal pattern \citep{darban2024survey}.
@@ -208,6 +210,9 @@ Anomalies in time series can be classified as \textbf{temporal}, \textbf{interme
  
 \subsubsection{Temporal Anomalies}
  
+Temporal anomalies are deviations that are localised in the time dimension,
+meaning they occur at a specific point or subsequence along the time axis rather
+than across sensor dimensions.
 Temporal anomalies can be compared against neighbouring points (\textit{local}) or the entire series (\textit{global}), and they manifest in several distinct forms \citep{darban2024survey}:
  
 \begin{itemize}
@@ -216,7 +221,8 @@ Temporal anomalies can be compared against neighbouring points (\textit{local}) 
     Spikes in the series where a point has an extreme value compared to the rest of the series (e.g., an unusually large payment on a typical day).
  
     \item \textbf{Contextual anomaly:}
-    A deviation from a local neighbourhood --- a value that is normal in one context but anomalous in another (e.g., high transaction volume is normal on a public holiday but anomalous on a regular weekday).
+    A deviation from a local neighbourhood --- a value that is normal in one context but anomalous in another 
+    (e.g., a high number of restaurant customers is anomalous on a regular weekday but perfectly expected on a weekend).
  
     \item \textbf{Seasonal anomaly:}
     An unusual seasonality pattern despite otherwise normal shape and trend --- the frequency of rises and drops in a specific segment differs from the expected seasonal cycle.
@@ -263,7 +269,7 @@ Before the widespread adoption of deep learning, TSAD relied on several classica
 \begin{itemize}
     \item \textbf{Statistical methods:} Learn a statistical model of normal behaviour and flag deviations from it. These methods aim to model the normal 
     distribution of the time series and detect points that deviate significantly from the expected 
-    distribution\citep{darban2024survey}.
+    distribution \citep{darban2024survey}.
     \item \textbf{Clustering-based methods:} Learn a normal profile of time series windows and 
     use the distance to the centroid of normal clusters as an anomaly score, or identify clusters 
     with few members as anomalous \citep{darban2024survey}. More recent methods in this 
@@ -284,7 +290,7 @@ Before the widespread adoption of deep learning, TSAD relied on several classica
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Deep Models for Time Series Anomaly Detection}
+\section{Deep Learning Models for Time Series Anomaly Detection}
 
 Deep learning has become increasingly capable of learning expressive representations of complex time series, including multidimensional data with both spatial (intermetric) and temporal characteristics.
 In deep anomaly detection, neural networks are used to learn feature representations or anomaly scores in order to detect anomalies.
@@ -298,8 +304,8 @@ A range of deep architectures has been explored for anomaly detection, including
     LSTM networks extend RNNs with memory lasting thousands of steps, enabling superior 
     modelling of long-term dependencies. Notable models in this category include LSTM-AD 
     \citep{malhotra2015lstm}, which uses hierarchical recurrent layers for unsupervised anomaly 
-    detection in univariate time series, and LSTM-NDT \citep{hundman2018detecting}, which 
-    combines LSTM with Nonparametric Dynamic Thresholding (NDT) \citep{hundman2018ndt}  for spacecraft anomaly detection. 
+    detection in univariate time series, and LSTM-NDT \citep{hundman2018smap}, which 
+    combines LSTM with Nonparametric Dynamic Thresholding (NDT) \citep{hundman2018smap} for spacecraft anomaly detection. 
     GRU \citep{cho2014properties} offers a simpler gating structure than LSTM, leading to faster training times while 
     retaining the ability to capture temporal dependencies \citep{darban2024survey}.
 
@@ -327,10 +333,10 @@ A range of deep architectures has been explored for anomaly detection, including
     reconstructs the input, with anomalies detected based on high reconstruction error 
     \citep{darban2024survey}. VAEs extend this framework by encoding inputs as 
     distributions rather than single points, enabling probabilistic anomaly scoring. 
-    OmniAnomaly \citep{su2019robust} uses a VAE with stochastic RNNs for robust 
+    OmniAnomaly \citep{su2019smd} uses a VAE with stochastic RNNs for robust 
     representations of multivariate data and applies Peaks-Over-Threshold (POT) \citep{siffer2017pot} for thresholding. USAD 
     \citep{audibert2020usad} employs adversarially trained AEs to amplify reconstruction 
-    errors and distinguish anomalies more reliably. RANSynCoders \citep{abdulaal2021practical} 
+    errors and distinguish anomalies more reliably. RANSynCoders \citep{abdulaal2021psm} 
     proposes an architecture with multiple encoders and decoders using random feature 
     selection and majority voting to localise anomalies, developed for real-time use at eBay.
 
@@ -371,7 +377,7 @@ A range of deep architectures has been explored for anomaly detection, including
 \end{itemize}
  
 Deep TSAD models process inputs either point-by-point or using sliding windows, and output either continuous anomaly scores or binary labels \citep{darban2024survey}.
-Common thresholding methods applied to anomaly scores include NDT \citep{hundman2018ndt} and POT \citep{siffer2017pot}.
+Common thresholding methods applied to anomaly scores include NDT \citep{hundman2018smap} and POT \citep{siffer2017pot}.
  
 \subsubsection{Learning Schemes}
  
@@ -420,7 +426,7 @@ They are preferred when high accuracy is paramount and some detection delay is a
  
 Representation-based models focus on learning rich, generalisable latent representations of time series that can subsequently be used for anomaly detection as a downstream task.
 Rather than operating in raw input space, anomaly detection is performed in the learned latent space.
-These models are particularly useful when labelled data is scarce, as they commonly operate under unsupervised or self-supervised learning schemes.  \citep{darban2024survey}.
+These models are particularly useful when labelled data is scarce, as they commonly operate under unsupervised or self-supervised learning schemes  \citep{darban2024survey}.
  
 \subsubsection{Hybrid Approach}
 \label{sec:hybrid}
@@ -570,7 +576,7 @@ activation functions (e.g.\ \texttt{aten::softmax}), and other operations such a
 implemented and registered with \texttt{fvcore}'s analysis object to cover these
 missing operations. The reported MAC counts should consequently be
 interpreted as lower bounds on the true per-forward-pass cost, suitable for relative
-cross-model comparison rather than absolute throughput estimation.
+cross-model comparison rather than absolute operation count.
 
 \subsection{Memory Usage}
 \label{subsec:memory}
@@ -671,14 +677,41 @@ Throughput is particularly relevant when evaluating a model's ability
 to keep pace with the data rate of a sensor stream without accumulating a
 backlog. 
 
-\chapter{Chosen Models}
+
+\section{Key Contributions and Thesis Structure}
+The main contributions of this thesis are as follows. Five deep learning models are benchmarked 
+not only on detection accuracy but on the full set of efficiency constraints that determine whether 
+a model is viable for IoT edge deployment, revealing a different picture than the 
+accuracy leaderboard alone would suggest. Detection accuracy is assessed using both point-adjusted 
+F1 score and AU-PR score computed from raw anomaly scores without point adjustment, allowing a direct 
+comparison between the threshold-sensitive PA protocol and a threshold-independent measure 
+of score separability --- revealing cases where models that appear strong under F1 perform poorly 
+when evaluated without the benefit of segment-level credit. Static and runtime memory usage are 
+profiled on both server and edge hardware, enabling identification of which models are feasible 
+under realistic deployment constraints and which are not. MAC counts are measured to characterise 
+the computational cost of each model independently of hardware, identifying which architectures 
+are inherently expensive to run. Finally, latency and throughput are measured on both server and 
+edge device environments, 
+providing direct guidance on which models can sustain real-time inference on constrained hardware.
+
+Having established the background on time series anomaly detection, deep learning architectures, 
+and evaluation metrics, the remainder of this thesis is organised as follows. 
+Chapter~\ref{ch:selected_models} describes the five models evaluated in this thesis, c
+overing their architectural design and anomaly detection approach. Chapter~\ref{ch:experiments} 
+presents the experimental setup, datasets, and results across both accuracy and efficiency dimensions. 
+Chapter~\ref{ch:conclusion} concludes the thesis with a summary of findings, a deployment recommendation, 
+and directions for future work.
+
+\chapter{Selected Models}
+\label{ch:selected_models}
 
 The five models evaluated in this thesis --- TimesNet \citep{timesnet2023} , ModernTCN \citep{moderntcn2024} , TranAD \citep{tranad2022}, 
 Anomaly Transformer \citep{anomalytransformer2022} , and GTA \citep{gta2022} 
 --- were selected to represent a diverse set of deep learning 
 architectures for time series anomaly detection, spanning convolutional, transformer-based, 
 and graph-based approaches. The selection was driven by a combination of reported accuracy, 
-architectural diversity, and relevance to IoT edge deployment.
+architectural diversity, and relevance to IoT edge deployment. Table~\ref{tab:model_summary} 
+summarises the key characteristics of each model.
 
 TimesNet \citep{timesnet2023} and ModernTCN \citep{moderntcn2024} were chosen as 
 representatives of the CNN-based family. Both are task-general backbones that have 
@@ -713,6 +746,23 @@ approach --- which contrasts with the reconstruction-based strategy of all other
 selected models --- GTA broadens the architectural diversity of the evaluation and 
 provides a perspective on how IoT-native design choices affect detection performance 
 and efficiency.
+
+\begin{table}[ht]
+\centering
+\caption{Summary of selected model characteristics.}
+\label{tab:model_summary}
+\begin{tabular}{lllll}
+\toprule
+\textbf{Model} & \textbf{Architecture} & \textbf{Approach} & \textbf{Learning Scheme} \\
+\midrule
+TimesNet \citep{timesnet2023} & CNN & Reconstruction & Unsupervised  \\
+ModernTCN \citep{moderntcn2024} & CNN & Reconstruction & Unsupervised  \\
+TranAD \citep{tranad2022} & Transformer & Reconstruction & Unsupervised  \\
+Anomaly Tran. \citep{anomalytransformer2022} & Transformer & Reconstruction & Unsupervised  \\
+GTA \citep{gta2022} & Transformer + GNN & Forecasting & Unsupervised  \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{TimesNet}
 TimesNet \citep{timesnet2023} is a task-general deep learning backbone for time series
@@ -802,8 +852,8 @@ reconstruction error exceeds a threshold.
 
 ModernTCN \citep{moderntcn2024} is a pure convolution-based backbone for general
 time series analysis. Like
-TimesNet, it targets five mainstream time series analysis tasks simultaneously (
-short- and long-term forecasting, imputation, classification, and anomaly detection) but takes a
+TimesNet, it targets five mainstream time series analysis tasks simultaneously 
+(short- and long-term forecasting, imputation, classification, and anomaly detection) but takes a
 fundamentally different approach: rather than transforming the time series into 2D
 space, ModernTCN instead modernises the convolution operation itself
 \citep{moderntcn2024}. In the context of this thesis, it is evaluated strictly as an
@@ -1191,11 +1241,31 @@ exclusively on normal data, it learns to predict normal sensor behaviour
 accurately; anomalies produce large prediction errors because they deviate from
 the patterns the model has learned.
 
+\section{Summary}
+This chapter described the five deep learning models evaluated in this thesis. 
+TimesNet \citep{timesnet2023} and ModernTCN \citep{moderntcn2024} represent the 
+CNN-based family, both employing reconstruction-based 
+anomaly detection but differing fundamentally in how they process temporal information: 
+TimesNet through FFT-guided 2D transformation and ModernTCN through large-kernel depthwise 
+convolution with an enlarged effective receptive field. TranAD \citep{tranad2022} and 
+Anomaly Transformer \citep{anomalytransformer2022}
+represent the Transformer-based family, both designed exclusively for anomaly detection 
+but with contrasting detection philosophies: TranAD amplifies reconstruction errors through 
+adversarial self-conditioning, while Anomaly Transformer measures the discrepancy between 
+a time point's learned and prior-expected attention distributions. GTA \citep{gta2022} combines a 
+Transformer-based encoder-decoder with a hierarchical graph convolution context encoding, 
+distinguishing itself from the other models as the only forecasting-based model and 
+the only one to explicitly learn inter-sensor dependencies as a graph topology, 
+motivated by the cascading failure dynamics characteristic of IoT systems. Together, 
+the five models span convolutional, transformer-based, and graph-based architectures 
+and two detection paradigms, providing a diverse basis for the accuracy and efficiency 
+evaluation presented in Chapter~\ref{ch:experiments}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \chapter{Experiments}
+\label{ch:experiments}
 
 The evaluation framework used in this thesis is designed around two complementary 
 objectives: assessing detection accuracy and assessing suitability for IoT edge 
@@ -1234,10 +1304,12 @@ equipped with two Intel Xeon E5-2620 v4
 processors (8 cores per socket, 2 threads per core, 2.10\,GHz base clock, 
 3.00\,GHz boost), yielding 32 logical CPU cores in total, and 128\,GB of system 
 RAM. The server is fitted with four NVIDIA GeForce RTX 2080 GPUs, each with 
-8\,GB of VRAM. TranAD, whose codebase hardcodes CPU execution, 
+8\,GB of VRAM; all experiments used a single GPU. TranAD, whose codebase hardcodes CPU execution, 
 ran exclusively on the server CPUs.
 
-TODO: EDGE DEVICE SPECS
+The edge device is an NVIDIA Jetson AGX Orin running Ubuntu 22.04.5 LTS, 
+equipped with a 6-core ARMv8 processor (1 thread per core, 1.73\,GHz maximum clock) 
+and 7.4\,GB of unified memory shared between the CPU and the integrated Jetson GPU.
 
 \section{Datasets}
 
@@ -1395,11 +1467,6 @@ All other models cluster between 13 and 18\% in average AU-PR, with Anomaly Tran
 between F1 and AU-PR highlights the sensitivity of point-adjusted F1 to threshold selection, and underscores the value of reporting AU-PR as a complementary, 
 threshold-independent measure of detection quality \citep{darban2024survey}.
 
-
-Figure~\ref{fig:f1_barchart} and Figure~\ref{fig:aupr_barchart} complement the per-dataset results in 
-Table~\ref{tab:accuracy} by visualising the distribution of F1 and AU-PR scores across datasets for 
-each model, making consistency and variance across benchmarks directly comparable.
-
 \begin{figure}[ht]
     \centering
     \includegraphics[width=\textwidth]{f1_barchart_by_model.png}
@@ -1503,7 +1570,7 @@ TranAD almost never raises a false alarm (only 1 false positive), but as a conse
 nearly two thirds of all anomalous points at the point level. It is important to note that 
 these are raw point-level counts without point adjustment applied. Under the point-adjust 
 protocol, any anomaly segment in which at least one point is correctly flagged is credited as 
-fully detected \citep{su2019smd}, which substantially changes the effective recall and explains 
+fully detected \citep{darban2024survey}, which substantially changes the effective recall and explains 
 why the PA F1 reported in Table~\ref{tab:accuracy} is considerably higher than these raw counts 
 would suggest.
 
@@ -1732,34 +1799,34 @@ Lowest value per row in \textbf{bold}, second-lowest \underline{underlined}.}
     & \thead{\textbf{GTA}\\\citep{gta2022}} \\
 \midrule
 \multirow{3}{*}{SMD}
-    & Params             & 7{,}041{,}190 & \underline{653{,}000} & \textbf{127{,}538} & 4{,}828{,}222 & 797{,}450 \\
-    & W\textsubscript{ex}  &  28.16 & \underline{2.61} & \textbf{1.02} & 18.42 &  6.08 \\
-    & W\textsubscript{alloc}$^\dagger$ &  30.44 & \underline{2.65} & \textbf{1.03} & 28.77 & 15.88 \\
+    & Params (\#)             & 7{,}041{,}190 & \underline{653{,}000} & \textbf{127{,}538} & 4{,}828{,}222 & 797{,}450 \\
+    & W\textsubscript{ex} (MB)  &  28.16 & \underline{2.61} & \textbf{1.02} & 18.42 &  6.08 \\
+    & W\textsubscript{alloc}$^\dagger$ (MB) &  30.44 & \underline{2.65} & \textbf{1.03} & 28.77 & 15.88 \\
 \midrule
 \multirow{3}{*}{MSL}
-    & Params             & 7{,}045{,}559 & 1{,}064{,}264 & \textbf{261{,}243} & 4{,}863{,}055 & \underline{844{,}523} \\
-    & W\textsubscript{ex}  &  28.28 & \underline{4.26} & \textbf{2.09} & 18.55 &  6.44 \\
-    & W\textsubscript{alloc}$^\dagger$ &  30.46 & \underline{4.32} & \textbf{2.10} & 28.90 & 16.26 \\
+    & Params (\#)                 & 7{,}045{,}559 & 1{,}064{,}264 & \textbf{261{,}243} & 4{,}863{,}055 & \underline{844{,}523} \\
+    & W\textsubscript{ex} (MB)  &  28.28 & \underline{4.26} & \textbf{2.09} & 18.55 &  6.44 \\
+    & W\textsubscript{alloc}$^\dagger$ (MB) &  30.46 & \underline{4.32} & \textbf{2.10} & 28.90 & 16.26 \\
 \midrule
 \multirow{3}{*}{SMAP}
-    & Params             & 1{,}761{,}753 & \underline{143{,}01} & \textbf{57{,}273} & 4{,}801{,}585 & 769{,}253 \\
-    & W\textsubscript{ex}  & 7.05 &  \underline{0.57} & \textbf{0.46} & 18.32 &  5.87 \\
-    & W\textsubscript{alloc}$^\dagger$ &  7.70 &  \underline{0.59} & \textbf{0.46} & 28.67 & 15.66 \\
+    & Params (\#)             & 1{,}761{,}753 & \underline{143{,}016 } & \textbf{57{,}273} & 4{,}801{,}585 & 769{,}253 \\
+    & W\textsubscript{ex} (MB)  & 7.05 &  \underline{0.57} & \textbf{0.46} & 18.32 &  5.87 \\
+    & W\textsubscript{alloc}$^\dagger$ (MB) &  7.70 &  \underline{0.59} & \textbf{0.46} & 28.67 & 15.66 \\
 \midrule
 \multirow{3}{*}{SWaT}
-    & Params             & 7{,}044{,}531 & 960{,}840 & \textbf{225{,}519} & 4{,}854{,}859 & \underline{832{,}407} \\
-    & W\textsubscript{ex}  &  28.18 & \underline{3.84} & \textbf{1.80} & 18.52 &  6.35 \\
-    & W\textsubscript{alloc}$^\dagger$ &  30.45 & \underline{3.90} & \textbf{1.81} & 28.87 & 16.16 \\
+    & Params (\#)             & 7{,}044{,}531 & 960{,}840 & \textbf{225{,}519} & 4{,}854{,}859 & \underline{832{,}407} \\
+    & W\textsubscript{ex} (MB)  &  28.18 & \underline{3.84} & \textbf{1.80} & 18.52 &  6.35 \\
+    & W\textsubscript{alloc}$^\dagger$ (MB) &  30.45 & \underline{3.90} & \textbf{1.81} & 28.87 & 16.16 \\
 \midrule
 \multirow{3}{*}{PSM}
-    & Params             & 1{,}761{,}753 & \underline{143{,}016} & \textbf{57{,}273} & 4{,}801{,}585 & 769{,}253 \\
-    & W\textsubscript{ex}  &  7.05 &  \underline{0.57} & \textbf{0.46} & 18.32 &  5.87 \\
-    & W\textsubscript{alloc}$^\dagger$ &  7.70 &  \underline{0.59} & \textbf{0.46} & 28.67 & 15.66 \\
+    & Params (\#)             & 1{,}761{,}753 & \underline{143{,}016} & \textbf{57{,}273} & 4{,}801{,}585 & 769{,}253 \\
+    & W\textsubscript{ex} (MB)  &  7.05 &  \underline{0.57} & \textbf{0.46} & 18.32 &  5.87 \\
+    & W\textsubscript{alloc}$^\dagger$ (MB) &  7.70 &  \underline{0.59} & \textbf{0.46} & 28.67 & 15.66 \\
 \midrule
 \multirow{3}{*}{Average}
-    & Params             & 4{,}930{,}957 & \underline{592{,}827} & \textbf{145{,}769} & 4{,}829{,}861 & 802{,}577 \\
-    & W\textsubscript{ex}  &  19.74 & \underline{2.37} & \textbf{1.17} & 18.43 &  6.12 \\
-    & W\textsubscript{alloc}$^\dagger$ &  21.35 & \underline{2.41} & \textbf{1.17} & 28.78 & 15.92 \\
+    & Params (\#)             & 4{,}930{,}957 & \underline{592{,}827} & \textbf{145{,}769} & 4{,}829{,}861 & 802{,}577 \\
+    & W\textsubscript{ex} (MB)  &  19.74 & \underline{2.37} & \textbf{1.17} & 18.43 &  6.12 \\
+    & W\textsubscript{alloc}$^\dagger$ (MB) &  21.35 & \underline{2.41} & \textbf{1.17} & 28.78 & 15.92 \\
 \bottomrule
 \multicolumn{7}{l}{\footnotesize $^\dagger$ TranAD executes on CPU; W\textsubscript{alloc} reflects CPU-allocated weight memory for TranAD,}\\
 \multicolumn{7}{l}{\footnotesize \phantom{$^\dagger$} GPU-allocated weight memory for all other models.}
@@ -1928,7 +1995,7 @@ Lowest value per row in \textbf{bold}, second-lowest \underline{underlined}.}
 \label{tab:memory_runtime_server}
 \begin{tabular}{ll rrrrr}
 \toprule
-\textbf{Dataset} & \textbf{Metric} $\downarrow$
+\textbf{Dataset} & \thead{\textbf{Metric}\\(MB) $\downarrow$}
     & \thead{\textbf{TimesNet}\\\citep{timesnet2023}}
     & \thead{\textbf{ModTCN}\\\citep{moderntcn2024}}
     & \thead{\textbf{TranAD}$^\dagger$\\\citep{tranad2022}}
@@ -2064,23 +2131,25 @@ edge device; all other models were profiled at the original batch size.
 \begin{table}[ht]
 \centering
 \caption{Static and runtime memory footprint of Anomaly Transformer on the edge device
-(batch size = 64). All memory values in MB.}
+(batch size = 64). Memory values in MB; parameter count in absolute numbers.}
 \label{tab:memory_runtime_edge_anomtr}
-\begin{tabular}{l rrrrr}
+\begin{tabular}{l rrrrrr}
 \toprule
-\textbf{Metric} $\downarrow$
-    & \textbf{SMD}
-    & \textbf{MSL}
-    & \textbf{SMAP}
-    & \textbf{SWaT}
-    & \textbf{PSM} \\
+\textbf{Dataset}
+    & \thead{\textbf{Params}\\(\#)}
+    & \thead{\textbf{W\textsubscript{ex}}\\(MB)}
+    & \thead{\textbf{W\textsubscript{alloc}}\\(MB)}
+    & \thead{\textbf{Peak train}\\(MB)}
+    & \thead{\textbf{Peak infer}\\(MB)}
+    & \thead{\textbf{OH}\\(MB)} \\
 \midrule
-Params              & 4{,}828{,}222 & 4{,}863{,}055 & 4{,}801{,}585 & 4{,}854{,}859 & 4{,}801{,}585 \\
-W\textsubscript{ex} &         18.42 &         18.55 &         18.32 &         18.52 &         18.32 \\
-W\textsubscript{alloc} &      28.30 &         28.43 &         28.20 &         28.40 &         28.20 \\
-Peak train          &      1552.57  &      2120.92  &      2118.75  &      2122.15  &      2118.70  \\
-Peak infer          &      1484.07  &      1548.87  &      1543.49  &      1548.75  &      1543.49  \\
-OH                  &      1524.27  &      2092.49  &      2090.55  &      2093.74  &      2090.50  \\
+SMD  & 4{,}828{,}222 & 18.42 & 28.30 & 1552.57 & 1484.07 & 1524.27 \\
+MSL  & 4{,}863{,}055 & 18.55 & 28.43 & 2120.92 & 1548.87 & 2092.49 \\
+SMAP & 4{,}801{,}585 & 18.32 & 28.20 & 2118.75 & 1543.49 & 2090.55 \\
+SWaT & 4{,}854{,}859 & 18.52 & 28.40 & 2122.15 & 1548.75 & 2093.74 \\
+PSM  & 4{,}801{,}585 & 18.32 & 28.20 & 2118.70 & 1543.49 & 2090.50 \\
+\midrule
+Avg  & 4{,}829{,}861 & 18.43 & 28.31 & 2006.62 & 1533.73 & 1978.31 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2148,8 +2217,7 @@ Anomaly Transformer, the Gaussian kernel computation used to derive the
 prior-association is entirely invisible to \texttt{fvcore} and was therefore
 computed analytically and added manually to the reported total. All MAC counts
 should consequently be interpreted as lower bounds on the true per-forward-pass
-cost, suitable for relative cross-model comparison rather than absolute throughput
-estimation.
+cost, suitable for relative cross-model comparison rather than absolute operation count.
 
 \begin{table}[ht]
 \centering
@@ -2365,85 +2433,129 @@ all other models at batch size 128.}
 \end{tabular}
 \end{table}
 
-Figure~\ref{fig:latency_scatter} plots average latency against average throughput
-for both environments, making the cross-environment shift in rankings immediately
-visible. On the server, TranAD and ModernTCN occupy the same high-throughput,
-low-latency corner of the plot, with TranAD at 10.9\,ms and ModernTCN at 9.7\,ms
---- a negligible difference that suggests CPU execution imposes little penalty when
-the model is sufficiently lightweight. On the edge device, this picture changes
-considerably: ModernTCN retains its position as the fastest model at 58.6\,ms,
-while TranAD falls back to 107.8\,ms, nearly doubling its latency. The gap between
-the two widens from under 2\,ms on the server to approximately 49\,ms on the edge,
-indicating that the absence of GPU acceleration becomes more consequential on
-constrained hardware where CPU performance is also more limited.
+Figures~\ref{fig:latency_bar} and~\ref{fig:throughput_bar} visualise the cross-environment
+shift in latency and throughput, with the latenccy increase and throguhput reduction factors 
+annotated directly
+on each bar. On the server, ModernTCN and TranAD are the two fastest models, separated by
+under 2\,ms. On the edge device, ModernTCN retains its position as the fastest model at
+58.6\,ms with a 6.0$\times$ latency increase, while TranAD falls back to 107.8\,ms with a
+9.9$\times$ latency increase, indicating that the edge device's CPU is substantially less
+capable than the server CPU, amplifying the cost of CPU-only execution in a constrained
+environment.
 
-\begin{figure}[ht]
+\begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{latency_throughput.png}
-    \caption{Average latency (ms) versus throughput (input windows/s) for all five models
-    on the server (left) and edge device (right). The ideal region is the top-left
-    corner (low latency, high throughput). }
-    \label{fig:latency_scatter}
+    \includegraphics[width=\textwidth]{latency.png}
+    \caption{Average latency (ms) for all five models on the server and edge device,
+    averaged across the five benchmark datasets. The latency increase factor (edge / server)
+    is annotated on each edge bar. Lower is better ($\leftarrow$).}
+    \label{fig:latency_bar}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{throughput.png}
+    \caption{Average throughput (input windows/s) for all five models on the server
+    and edge device, averaged across the five benchmark datasets. The throughput reduction factor
+    (server / edge) is annotated on each edge bar. Higher is better ($\uparrow$).}
+    \label{fig:throughput_bar}
 \end{figure}
 
 GTA \citep{gta2022} stands out as a clear outlier on the edge device, where its 
-average latency of 880.3\,ms places it
-far to the right of all other models. Even on the server, where it achieves
-64.0\,ms, GTA is the second slowest model despite having a moderate MAC count ---
-a pattern attributed in Section~\ref{subsubsec:mac_results} to runtime overhead
-from its graph construction and adjacency matrix operations. On the edge device
-this overhead compounds further, resulting in a slowdown factor of approximately
-13.8$\times$, the largest of any model evaluated. TimesNet \citep{timesnet2023},
-by contrast, degrades more gracefully: despite being the slowest model on the
-server at 106.6\,ms, its edge latency of 340.4\,ms represents a slowdown of
-roughly 3.2$\times$, the smallest of all five models.
+average latency of 880.3\,ms and throughput of just 147 windows/s represent a
+13.8$\times$ latency increase and 13.7$\times$ throughput reduction respectively, which is by
+far the largest degradation of any model evaluated. Even on the server, where it
+achieves 64.0\,ms, GTA is the second slowest model despite having a moderate MAC
+count, a pattern attributed in Section~\ref{subsubsec:mac_results} to runtime
+overhead from its graph construction and adjacency matrix operations. On the edge
+device this overhead compounds further.
+
+TimesNet \citep{timesnet2023} degrades the least in relative terms, with a
+latency increase factor of only 3.2$\times$ and a throughput reduction of 4.1$\times$.
+This is the most graceful degradation of any model, suggesting that its 2D convolutional
+operations translate relatively efficiently to the edge hardware. Nevertheless, its
+absolute edge latency of 340.4\,ms makes it the second slowest model on the edge device.
+
+Anomaly Transformer \citep{anomalytransformer2022} incurs a 4.1$\times$ latency
+slowdown and 8.2$\times$ throughput reduction. Its fixed architecture and consistent
+MAC count across datasets appear to result in predictable and moderate scaling
+behaviour across hardware environments. (On the server environment, Anomaly 
+Transformer was evaluated using the standard batch size of 128, while on the edge 
+device it was executed at a reduced batch size due to memory constraints, and the 
+reported factors reflect this deployment setting.)
+
+ModernTCN \citep{moderntcn2024} incurs a 6.0$\times$ latency increase and 4.2$\times$
+throughput reduction. While it remains the fastest model in absolute terms on both
+platforms, the latency penalty is larger than one might expect for a lightweight
+convolutional model, suggesting that some of its efficiency advantage on the server 
+is tied to the more powerful 
+server GPU that is not available on the edge device.
+
+TranAD \citep{tranad2022} shows a 9.9$\times$ latency increase and 9.2$\times$
+throughput reduction, which is the second largest of any model. The result confirms
+that the edge device's CPU is substantially less capable than the server CPU,
+amplifying the cost of CPU-only execution in a constrained environment.
+
+\section{Evaluation Summary}
+Figure~\ref{fig:radar_chart} presents a radar chart summarising the performance 
+of all five models across six evaluation dimensions: AU-PR score, F1 score, throughput, 
+inference latency, peak inference memory, and peak training memory. All efficiency 
+values are taken from the edge device experiments, making this a direct assessment 
+of each model's suitability for the target deployment scenario. The values shown 
+represent averages across all five benchmark datasets. For metrics where a lower 
+value is better --- latency, inference memory, and training memory --- the axes are 
+displayed on an inverted scale so that a larger area consistently indicates better 
+performance across all dimensions.
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=0.85\textwidth]{latency_slowdown.png}
-    \caption{Latency increase factor (edge / server) for each model, computed as
-    the ratio of average edge latency to average server latency. The dotted line
-    at 1$\times$ marks the baseline of no slowdown. TranAD executes on CPU in
-    both environments; all other models execute on GPU.}
-    \label{fig:latency_slowdown}
+    \includegraphics[width=\textwidth]{radar_chart.png}
+    \caption{Radar chart comparing all five models across six evaluation metrics,
+    averaged across the five benchmark datasets. For metrics where a lower value
+    is preferable --- training memory, inference memory, and latency --- the axes
+    use an inverted scale, so that a larger enclosed area consistently indicates
+    better overall performance.}
+    \label{fig:radar_chart}
 \end{figure}
 
-Figure~\ref{fig:latency_slowdown} shows the latency increase factor for each model
-when moving from the server to the edge device. All models are slower on the edge,
-as expected, but the degree of degradation varies substantially across architectures
-and does not follow the MAC count ranking.
+The chart reveals a clear trade-off between detection accuracy and deployment
+efficiency. Anomaly Transformer \citep{anomalytransformer2022} achieves the highest
+F1 score but its polygon collapses on both memory axes, reflecting its prohibitive
+runtime memory demand documented in Section~\ref{subsubsec:runtime_server}. Despite
+its accuracy leadership, this makes it the least suitable model for
+resource-constrained edge deployment.
 
-TimesNet \citep{timesnet2023} degrades the least, with a increase factor of only
-3.2$\times$. This is the smallest penalty of any model despite TimesNet being the
-slowest model in absolute terms on both platforms. The result suggests that
-TimesNet's 2D convolutional operations, while computationally expensive, translate
-relatively efficiently to the edge hardware.
+TranAD \citep{tranad2022} and ModernTCN \citep{moderntcn2024} emerge as the two
+strongest candidates for edge deployment, and the choice between them is not
+straightforward. TranAD's polygon extends furthest on the memory axes and on AU-PR,
+reflecting its by far the lowest memory footprint of any model and its leading
+threshold-independent detection quality. ModernTCN, by contrast, dominates the
+throughput axis and achieves the best latency, with a consistently large polygon
+across all non-memory dimensions. Both achieve competitive F1 scores.
 
-Anomaly Transformer \citep{anomalytransformer2022} follows with a a latency 
-increase factor of
-4.1$\times$, the second most graceful degradation. Its fixed architecture and
-consistent MAC count across datasets appear to result in predictable and moderate
-scaling behaviour across hardware environments. (On the server environment, Anomaly 
-Transformer was evaluated using the standard batch size of 128, while on the edge 
-device it was executed at a reduced batch size due to memory constraints, and the 
-reported latency increase reflects this deployment setting.)
+The choice between the two therefore depends on the specific constraints of the
+target deployment. If memory is the primary concern --- for instance on devices
+with very limited RAM budgets --- TranAD is the better choice, as its memory
+footprint is in a category of its own. If latency and throughput are the binding
+constraints --- for instance in applications that must process high-rate sensor
+streams in real time --- ModernTCN is the more suitable option.
 
-ModernTCN \citep{moderntcn2024} incurs a 6.0$\times$ latency increase. While it remains
-the fastest model in absolute latency on both platforms, the penalty is larger than
-one might expect for a lightweight convolutional model, suggesting that some of its
-efficiency advantage on the server is tied to GPU parallelism that is less available
-on the edge device.
+GTA \citep{gta2022} and TimesNet \citep{timesnet2023} present the weakest overall
+profiles. GTA's polygon collapses on the latency axis, consistent with its
+880.3\,ms average edge latency, and it offers no compensating advantage on memory
+or accuracy. TimesNet's polygon is similarly constrained, with the smallest
+enclosed area of any model driven by its high latency, large memory footprint,
+and the lowest F1 of all five models. Neither model offers a compelling case for
+edge deployment relative to the alternatives evaluated here.
 
-TranAD \citep{tranad2022} shows a 9.9$\times$ latency increase --- the second largest ---
-which is particularly notable given that it already runs on the CPU on the server.
-The result indicates that the edge device's CPU is substantially less capable than
-the server CPU, amplifying the cost of CPU-only execution in a constrained
-environment.
-
-GTA \citep{gta2022} exhibits by far the largest latency increase at 13.8$\times$,
-confirming that its persistent graph construction overhead does not scale well to
-constrained hardware. Combined with its already high absolute latency on the server,
-this makes GTA the least suitable model for edge deployment among those evaluated.
+Taken together, the results support two conclusions. First, no single model
+dominates on all metrics simultaneously, confirming that accuracy and efficiency
+represent genuinely competing objectives in this benchmark. Second, the choice of
+model depends on the deployment context: if memory is the binding constraint,
+TranAD is the recommended choice; if latency and throughput take priority,
+ModernTCN is the stronger option. Anomaly Transformer, despite its accuracy
+leadership, is not a viable candidate for resource-constrained IoT edge deployment
+under the conditions evaluated in this thesis.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2451,97 +2563,130 @@ this makes GTA the least suitable model for edge deployment among those evaluate
 \chapter{Conclusion}
 \label{ch:conclusion}
 
-This thesis investigated the suitability of five deep learning models for
-time series anomaly detection in IoT edge deployment scenarios, evaluated
-along two complementary axes: detection accuracy and computational efficiency.
-The five models --- TimesNet \citep{timesnet2023}, ModernTCN \citep{moderntcn2024},
-TranAD \citep{tranad2022}, Anomaly Transformer \citep{anomalytransformer2022},
-and GTA \citep{gta2022} --- were selected to represent a diverse range of
-architectures spanning convolutional, transformer-based, and graph-based
-approaches. Each model was trained and evaluated on five widely adopted benchmark
-datasets --- SMD, MSL, SMAP, SWaT, and PSM --- following the experimental
-setup described in each model's original publication. Detection accuracy was
-assessed using point-adjusted F1 score and AU-PR, while efficiency was
-characterised through MAC counts, memory footprint, and inference speed,
-measured on both a server-grade GPU environment and a resource-constrained
-edge device.
+This thesis investigated the suitability of modern deep learning models for
+multivariate time-series anomaly detection in resource-constrained IoT
+environments. While recent TSAD research has largely focused on maximising
+detection accuracy, practical edge deployment introduces additional constraints
+that change how models should be evaluated. The central goal of
+this work was therefore not only to determine which model performs best on
+benchmark datasets, but to understand how architectural design choices influence
+computational efficiency, memory behaviour, and real-world deployability under
+constrained hardware conditions.
 
-\section{Evaluation Summary}
-Figure~\ref{fig:parallel_coords} presents a parallel coordinates plot summarising
-the performance of all five models across six evaluation dimensions: F1 score,
-peak training memory, peak inference memory, inference latency, throughput, and
-MAC count. All efficiency values --- training memory, inference memory, latency,
-and throughput --- are taken from the edge device experiments, making this a
-direct assessment of each model's suitability for the target deployment scenario.
-The values shown represent averages across all five benchmark datasets.
-To enable visual comparison across metrics with fundamentally different
-units and scales, all values are normalised to the range $[0, 1]$ using the
-observed minimum and maximum across the five models as the range boundaries: a
-value equal to the best observed result maps to 1, and a value equal to the worst
-observed result maps to 0. For metrics where a lower value is better --- training
-memory, inference memory, latency, and kMACs --- the normalised values are
-subsequently inverted so that a higher position on every axis consistently
-indicates better performance. Throughput, like F1, is higher-is-better and
-requires no inversion.
+To address this, five representative deep learning models spanning convolutional,
+transformer-based, and graph-based architectures were evaluated across two
+complementary dimensions: detection performance and computational efficiency.
+The selected models — TimesNet \citep{timesnet2023}, ModernTCN \citep{moderntcn2024}, 
+TranAD \citep{tranad2022}, Anomaly Transformer \citep{anomalytransformer2022}, and
+GTA \citep{gta2022} — represent distinct design choices for learning temporal and
+intermetric dependencies in multivariate time series. Their evaluation across
+multiple benchmark datasets and hardware environments enabled a comparative
+analysis not only of model quality, but also of the trade-offs that emerge
+between accuracy, runtime behaviour, and deployment feasibility.
 
-\begin{figure}[ht]
-    \centering
-    \includegraphics[width=\textwidth]{parallel_coords.png}
-    \caption{Parallel coordinates plot comparing all five models across six
-    evaluation metrics, averaged across the five benchmark datasets.
-    All axes are normalised to $[0, 1]$ where 1 = best. For metrics where
-    a lower value is preferable --- training memory, inference memory,
-    latency, and kMACs --- the normalised scores are inverted, so that a
-    model with lower raw values appears higher on the axis. Throughput and
-    F1 require no inversion as higher raw values are already better.}
-    \label{fig:parallel_coords}
-\end{figure}
+One of the clearest findings throughout the evaluation was that accuracy metrics
+alone provide an incomplete and sometimes misleading picture of model quality.
+The comparison between point-adjusted F1 and AU-PR demonstrated that models can
+perform very differently depending on whether evaluation relies on
+threshold-sensitive segment-level credit or threshold-independent score
+separability. In particular, the experiments highlighted how point adjustment can
+substantially inflate perceived performance, especially for models capable of
+detecting only a small portion of a long anomalous segment. Reporting AU-PR
+alongside point-adjusted F1 therefore provided a more balanced and informative
+evaluation framework, revealing cases where strong F1 performance did not
+necessarily correspond to robust anomaly score distributions.
 
-The plot reveals a trade-off between detection accuracy and deployment
-efficiency that runs through the entire model comparison. Anomaly Transformer
-\citep{anomalytransformer2022} achieves the highest normalised F1 score but
-collapses to zero on both memory axes, reflecting its prohibitive runtime memory
-demand documented in Section~\ref{subsubsec:runtime_server}. Despite its leading
-accuracy, this makes it the least suitable model for resource-constrained edge
-deployment. 
+The experiments further showed that architectural design decisions strongly shape
+the balance between detection capability and efficiency. The convolution-based
+models demonstrated that modern CNN architectures remain competitive for
+TSAD despite the dominance of Transformer-based approaches in recent literature.
+ModernTCN in particular illustrated how enlarging the effective receptive field
+through large-kernel depthwise convolutions can provide strong temporal modelling
+while retaining the computational advantages of convolution \citep{moderntcn2024}. Its consistently
+strong latency and throughput characteristics across both hardware environments
+showed that convolutional architectures can scale efficiently to edge deployment
+scenarios without sacrificing competitive detection performance.
 
-At the opposite end of the spectrum, TranAD \citep{tranad2022} and ModernTCN
-\citep{moderntcn2024} emerge as the two strongest candidates for edge deployment,
-and the choice between them is not straightforward. Both achieve competitive F1
-scores and low kMAC counts, meaning these two metrics alone do not differentiate
-them meaningfully. The distinction lies in the remaining efficiency dimensions.
-TranAD excels on memory: it has by far the lowest training and inference memory
-footprint of any model, and achieves good latency despite running entirely on the
-CPU. On the other hand, its throughput is weaker than ModernTCN. 
-ModernTCN, by contrast, is the strongest model on latency
-and throughput, and maintains a consistent profile across all metrics without any
-notable weakness, though it requires considerably more memory than TranAD.
+TimesNet demonstrated a different convolutional architecture centred around
+explicit modelling of periodic structure through FFT-guided 2D transformation \citep{timesnet2023}.
+The evaluation showed that modelling intra-period and inter-period variation
+separately can produce strong anomaly detection performance. At the same time, 
+the experiments showed that a more complex architecture does not automatically 
+lead to better deployment efficiency, because the extra tensor reshaping and 
+multi-period processing add more computational cost compared to simpler 
+convolution-based approaches.
 
-The choice between the two therefore depends on the specific constraints of the
-target deployment. If memory efficiency is the primary concern --- for instance on
-devices with very limited RAM budgets --- TranAD is the better choice, as its
-memory footprint is in a category of its own. If latency and throughput are the
-binding constraints --- for instance in applications that must process high-rate
-sensor streams in real time --- ModernTCN is the more suitable option.
+The Transformer-based models revealed a contrasting set of strengths and
+weaknesses. TranAD \cite{tranad2022} showed that compact Transformer architectures can achieve an
+extremely favourable efficiency profile despite relying entirely on CPU execution
+in its original implementation. Its low parameter count, modest memory
+requirements, and relatively stable runtime behaviour across datasets demonstrated
+that Transformer-based models do not necessarily imply prohibitively expensive
+deployment costs. The experiments also highlighted the practical effectiveness of
+self-conditioning and adversarial reconstruction amplification for detecting
+subtle anomalies without requiring large or computationally intensive
+architectures.
 
-GTA \citep{gta2022} and TimesNet \citep{timesnet2023} present the weakest overall
-profiles. GTA has the worst latency of all five models without compensating with a
-particularly strong F1 or memory advantage. TimesNet has the highest computational
-cost by a large margin, reflecting its expensive 2D data transformation, and
-achieves the lowest F1 of all five models. Neither model offers a compelling case
-for edge deployment relative to the alternatives evaluated here.
+Anomaly Transformer demonstrated the benefits of attention-based association
+modelling for anomaly detection, introducing a fundamentally different detection
+criterion from reconstruction error alone \citep{anomalytransformer2022}. 
+The experiments showed that modelling
+discrepancies between local and global temporal associations can produce strong
+detection capability across diverse datasets. However, the evaluation also
+revealed the substantial runtime memory costs associated with Transformer
+attention mechanisms, particularly under reduced batch sizes on constrained
+hardware. This highlighted an important practical limitation of attention-heavy
+architectures for edge deployment: even when parameter counts remain moderate,
+runtime activation memory and attention computation can become the dominant
+deployment bottleneck.
 
-Taken together, analyzing the results supports two conclusions. First, no
-single model dominates on all metrics simultaneously, confirming that accuracy and
-efficiency represent genuinely competing objectives in this benchmark. Second, the
-choice of model depends on the deployment context: if memory is the
-binding constraints, TranAD is the recommended choice; if a balance across all
-dimensions is required, ModernTCN is the strongest all-rounder. Anomaly
-Transformer, despite its accuracy leadership, is not a viable candidate for
-resource-constrained IoT edge deployment under the conditions evaluated in this
-thesis.
+GTA \citep{gta2022} provided insight into graph-based modelling for IoT anomaly detection. Its
+explicit representation of inter-sensor dependencies and learned graph topology
+demonstrated the value of incorporating structural information into TSAD
+architectures, particularly for systems where anomalies propagate across sensors
+rather than appearing independently. At the same time, the evaluation showed that
+architectures designed specifically for IoT data are not automatically optimised
+for IoT hardware constraints. Despite its IoT-oriented motivation, GTA incurred
+substantial runtime overhead due to the combination of graph operations,
+hierarchical context encoding, and Transformer-based forecasting. This underlined
+a recurring theme throughout the thesis: architectural complexity intended to
+improve modelling capacity often introduces deployment costs that may outweigh
+the practical benefits in constrained environments.
 
-\section{Future work}
+Beyond individual models, the efficiency evaluation revealed several broader
+insights into deployment-oriented TSAD benchmarking. First, parameter count alone
+proved insufficient for characterising deployment feasibility. Models with
+relatively modest parameter counts could still exhibit very large runtime memory
+footprints due to intermediate activations, attention maps, or training graph
+overhead. Runtime memory behaviour therefore emerged as a more meaningful
+practical constraint than static model size alone.
+
+Second, the comparison between server-grade and edge hardware highlighted that
+deployment rankings can change substantially depending on the target environment.
+Some models that remained competitive on server hardware degraded
+disproportionately on the edge device due to memory pressure
+or hardware-specific execution inefficiencies. This reinforced the importance of
+evaluating TSAD models directly on representative deployment hardware rather than
+extrapolating from server-side benchmarks alone.
+
+Overall, the results of this thesis demonstrate that there is no universally
+optimal model for multivariate time-series anomaly detection under IoT
+constraints. Instead, deployment suitability depends on which resource constraint
+is dominant in the target environment. Models optimised primarily for detection
+performance may become impractical when memory budgets or latency requirements
+are strict, while highly efficient models may sacrifice detection
+quality in more complex anomaly scenarios.
+
+In conclusion, this thesis showed that evaluating anomaly detection models solely
+through benchmark accuracy overlooks many of the constraints that determine
+real-world usability in IoT systems. By jointly analysing detection performance,
+computational cost, memory behaviour, and inference speed across both server and
+edge hardware, this work provides a more deployment-oriented understanding of
+modern TSAD architectures and the trade-offs that govern their suitability for
+practical edge deployment.
+
+
+\section{Limitations and Future Work}
 
 Several directions emerge naturally from the findings of this thesis.
 
@@ -2571,6 +2716,54 @@ deployment scenarios. Evaluating the models on additional IoT-specific datasets,
 particularly those with higher sensor counts, more complex inter-sensor
 dependencies, or higher anomaly rates, would provide a more complete picture of
 where each model's strengths and weaknesses manifest.
+
+
+
+Although this thesis provides a comprehensive evaluation of modern TSAD models from 
+both an accuracy and deployment perspective, several limitations remain that open 
+opportunities for future research.
+
+One limitation of this work is the selection of evaluated models. While the 
+chosen architectures represent diverse design approaches, the field of time-series 
+anomaly detection is evolving rapidly, especially in the area of lightweight and 
+edge-oriented models. For example, approaches such as TinyAD \citep{tinyad2023} specifically 
+target memory-efficient anomaly detection for Industrial IoT environments. 
+However, some of these methods either lacked publicly available implementations or provided insufficient 
+reproducibility support at the time of evaluation, making a fair experimental comparison difficult. 
+As a result, future work should extend this evaluation framework to include more lightweight 
+TSAD architectures.
+
+Another limitation concerns hyperparameter optimisation and reproducibility. Several of 
+the evaluated papers did not provide detailed information regarding hyperparameter tuning 
+procedures, recommended parameter ranges, or dataset-specific training configurations. 
+In some cases, only partial implementation details were available, requiring assumptions 
+or independent tuning decisions during reproduction. Consequently, certain models may not have 
+achieved their full potential performance on all datasets within this thesis. Future research could 
+therefore focus on establishing more standardized and reproducible TSAD benchmarking practices, including 
+transparent reporting of tuning strategies, training schedules, and hardware-specific optimisation settings.
+
+The evaluation was also limited to a selected set of benchmark datasets and hardware configurations. 
+Although the chosen datasets cover different anomaly detection scenarios, they cannot fully represent 
+the diversity of real-world Industrial IoT environments. Future work could expand the analysis to additional 
+datasets with varying anomaly characteristics, sensor modalities, and temporal dynamics. Similarly, evaluating 
+the models on a broader range of edge hardware platforms, would provide a more complete understanding 
+of deployment behaviour under practical constraints.
+
+In addition, this thesis focused primarily on inference-time efficiency metrics such as latency, throughput, 
+memory consumption, and computational cost. Other deployment-oriented factors, including power 
+consumption and thermal efficiency \citep{fanariotis2023power}, or long-term reliability under 
+continuous streaming workloads \citep{li2018energy}, 
+were outside the scope 
+of this work. These aspects are highly relevant for real-world IoT deployments and represent important 
+directions for future research.
+
+Finally, several optimisation techniques were left unexplored due to both time constraints and the need to maintain 
+a controlled comparison between the original model architectures. Methods such as quantisation \citep{cheng2023compression}, 
+pruning \citep{cheng2023compression} and 
+knowledge distillation \citep{hinton2015distilling} could substantially improve 
+the deployability of existing TSAD models on edge devices. Future work could investigate how these optimisation 
+approaches affect both anomaly detection quality and systems-level efficiency, particularly for Transformer-based 
+architectures that showed strong detection capabilities but high runtime overhead.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
