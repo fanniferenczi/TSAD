@@ -1,5 +1,0 @@
-{
-    "seq_len":       {"_type": "choice",     "_value": [200, 400, 600]},
-    "top_k":         {"_type": "choice",     "_value": [1, 3, 5]},
-    "e_layers":      {"_type": "choice",     "_value": [2, 3]}
-}
