@@ -696,8 +696,8 @@ providing direct guidance on which models can sustain real-time inference on con
 
 Having established the background on time series anomaly detection, deep learning architectures, 
 and evaluation metrics, the remainder of this thesis is organised as follows. 
-Chapter~\ref{ch:selected_models} describes the five models evaluated in this thesis, c
-overing their architectural design and anomaly detection approach. Chapter~\ref{ch:experiments} 
+Chapter~\ref{ch:selected_models} describes the five models evaluated in this thesis, 
+covering their architectural design and anomaly detection approach. Chapter~\ref{ch:experiments} 
 presents the experimental setup, datasets, and results across both accuracy and efficiency dimensions. 
 Chapter~\ref{ch:conclusion} concludes the thesis with a summary of findings, a deployment recommendation, 
 and directions for future work.
@@ -710,7 +710,9 @@ Anomaly Transformer \citep{anomalytransformer2022} , and GTA \citep{gta2022}
 --- were selected to represent a diverse set of deep learning 
 architectures for time series anomaly detection, spanning convolutional, transformer-based, 
 and graph-based approaches. The selection was driven by a combination of reported accuracy, 
-architectural diversity, and relevance to IoT edge deployment. Table~\ref{tab:model_summary} 
+architectural diversity, and relevance to IoT edge deployment. All five models operate under 
+an unsupervised learning scheme, trained 
+exclusively on normal data without any anomaly labels. Table~\ref{tab:model_summary} 
 summarises the key characteristics of each model.
 
 TimesNet \citep{timesnet2023} and ModernTCN \citep{moderntcn2024} were chosen as 
@@ -751,15 +753,15 @@ and efficiency.
 \centering
 \caption{Summary of selected model characteristics.}
 \label{tab:model_summary}
-\begin{tabular}{lllll}
+\begin{tabular}{lll}
 \toprule
-\textbf{Model} & \textbf{Architecture} & \textbf{Approach} & \textbf{Learning Scheme} \\
+\textbf{Model} & \textbf{Architecture} & \textbf{Approach} \\
 \midrule
-TimesNet \citep{timesnet2023} & CNN & Reconstruction & Unsupervised  \\
-ModernTCN \citep{moderntcn2024} & CNN & Reconstruction & Unsupervised  \\
-TranAD \citep{tranad2022} & Transformer & Reconstruction & Unsupervised  \\
-Anomaly Tran. \citep{anomalytransformer2022} & Transformer & Reconstruction & Unsupervised  \\
-GTA \citep{gta2022} & Transformer + GNN & Forecasting & Unsupervised  \\
+TimesNet \citep{timesnet2023}              & CNN               & Reconstruction \\
+ModernTCN \citep{moderntcn2024}            & CNN               & Reconstruction \\
+TranAD \citep{tranad2022}                  & Transformer       & Reconstruction \\
+Anomaly Tran. \citep{anomalytransformer2022} & Transformer     & Reconstruction \\
+GTA \citep{gta2022}                        & Transformer + GNN & Forecasting    \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2434,7 +2436,7 @@ all other models at batch size 128.}
 \end{table}
 
 Figures~\ref{fig:latency_bar} and~\ref{fig:throughput_bar} visualise the cross-environment
-shift in latency and throughput, with the latenccy increase and throguhput reduction factors 
+shift in latency and throughput, with the latency increase and throughput reduction factors 
 annotated directly
 on each bar. On the server, ModernTCN and TranAD are the two fastest models, separated by
 under 2\,ms. On the edge device, ModernTCN retains its position as the fastest model at
