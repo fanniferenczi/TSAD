@@ -53,13 +53,12 @@ for i, (model, color) in enumerate(zip(models, colors)):
         train_val = train[i, j]
         infer_val = infer[i, j]
 
-        # Training value on top of training bar (skip for GTA)
-        if model != 'GTA':
-            ax.text(offsets[j], train_val,
-                    fmt(train_val),
-                    ha='center', va='bottom',
-                    fontsize=8.5, color=color, alpha=0.6,  # up from 6
-                    transform=ax.transData)
+        # Training value on top of training bar
+        ax.text(offsets[j], train_val,
+                fmt(train_val),
+                ha='center', va='bottom',
+                fontsize=8.5, color=color, alpha=0.6,
+                transform=ax.transData)
 
         # Inference value on top of inference bar
         ax.text(offsets[j], infer_val,
