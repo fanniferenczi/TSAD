@@ -1,6 +1,0 @@
-dataset,total_timesteps,anomalous_timesteps,anomaly_rate_pct,n_segments,seg_len_min,seg_len_max,seg_len_mean,seg_len_median,seg_bin_1_point,seg_bin_2_4,seg_bin_5_9,seg_bin_10_49,seg_bin_50_99,seg_bin_100_499,seg_bin_500plus
-MSL,73729,7766,10.53,36,11,1141,215.7,121.0,0,0,0,7,4,20,5
-SMAP,427617,54696,12.79,67,31,4218,816.4,131.0,0,0,0,7,15,25,20
-SMD,708420,29444,4.16,327,2,3161,90.0,11.0,0,110,40,81,29,55,12
-PSM,87841,24381,27.76,72,1,8861,338.6,5.0,16,19,3,14,2,11,7
-SWaT,449919,54621,12.14,35,101,35900,1560.6,444.0,0,0,0,0,0,21,14
