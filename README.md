@@ -1,9 +1,5 @@
 # Efficient Time-Series Anomaly Detection for IoT Systems
 
-> **Status: Ongoing Research** — This is an active master's thesis project. Results, findings, and model evaluations are continuously being updated.
-
----
-
 ## Motivation
 
 Time-series anomaly detection is critical for IoT systems, enabling predictive maintenance, security monitoring, and system optimization. While recent deep learning models achieve impressive accuracy on benchmark datasets, they face significant challenges in real-world IoT deployments. Edge devices operate under strict resource constraints—limited computational power, memory, and energy—and often require low-latency responses.
@@ -29,13 +25,13 @@ Specifically, this research aims to:
 
 The following five models are evaluated and compared in this study:
 
-| Model                     | Architecture Type       | Key Characteristics                                                                                                 |
-| ------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **TimesNet**              | CNN-based (2D temporal) | Transforms 1D time series into 2D tensors using multi-periodicity; uses inception blocks for 2D variation modeling. |
-| **ModernTCN**             | Modern TCN              | Updated temporal convolutional architecture with improved representational capacity.                                |
-| **TranAD**                | Transformer-based       | Transformer-based deep autoencoder for anomaly detection with adversarial training.                                 |
-| **Anomaly Transformer**   | Transformer-based       | Uses association discrepancy between attention patterns to distinguish anomalies from normal points.                 |
-| **GTA**                   | Graph Transformer       | Graph neural network combined with transformer for multivariate time-series anomaly detection.                      |
+| Model                   | Architecture Type | Key Characteristics                                                                                                 |
+| ----------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **TimesNet**            | CNN-based         | Transforms 1D time series into 2D tensors using multi-periodicity; uses inception blocks for 2D variation modeling. |
+| **ModernTCN**           | CNN-based         | Updated temporal convolutional architecture with improved representational capacity.                                |
+| **TranAD**              | Transformer-based | Transformer-based deep autoencoder for anomaly detection with adversarial training.                                 |
+| **Anomaly Transformer** | Transformer-based | Uses association discrepancy between attention patterns to distinguish anomalies from normal points.                |
+| **GTA**                 | Graph Transformer | Graph neural network combined with transformer for multivariate time-series anomaly detection.                      |
 
 ---
 
